@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
+
 ## [0.9.0] - 2026-10-16
 
 - Record the controller action and filtered params, or the job and its filtered arguments, with each occurrence, and store records in the context as GlobalIDs ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/115))
