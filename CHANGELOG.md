@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
+- Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
 
 ## [0.9.0] - 2026-10-16
 
