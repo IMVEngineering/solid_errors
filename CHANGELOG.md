@@ -2,6 +2,7 @@
 
 - Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
 - Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
+- Copy the last 5, 10 or 25 occurrences from the "Copy Markdown" menu, serve the Markdown at `/errors/:id.md`, and render it from views that apps can override
 
 ## [0.9.0] - 2026-10-16
 

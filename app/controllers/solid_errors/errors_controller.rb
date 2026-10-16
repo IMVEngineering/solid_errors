@@ -21,9 +21,18 @@ module SolidErrors
     end
 
     # GET /errors/1
+    # GET /errors/1.md?limit=5
     def show
-      @page = Page.new(@error.occurrences, params)
-      @occurrences = @error.occurrences.offset(@page.offset).limit(@page.items).order(created_at: :desc)
+      respond_to do |format|
+        format.html do
+          @page = Page.new(@error.occurrences, params)
+          @occurrences = @error.occurrences.offset(@page.offset).limit(@page.items).order(created_at: :desc)
+        end
+        format.md do
+          # Served as text/plain so browsers display it inline instead of downloading it
+          render plain: @error.to_markdown(limit: params[:limit]), content_type: "text/plain"
+        end
+      end
     end
 
     # PATCH/PUT /errors/1

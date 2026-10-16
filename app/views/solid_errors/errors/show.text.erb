@@ -1,0 +1,8 @@
+<%# locals: (error:, occurrences:) -%>
+<%= render "solid_errors/errors/markdown/preamble", error: error, occurrences: occurrences -%>
+<%= render "solid_errors/errors/markdown/header", error: error, occurrences: occurrences -%>
+<%- occurrences.each.with_index(1) do |occurrence, position| -%>
+<%= render "solid_errors/errors/markdown/occurrence", occurrence: occurrence, position: position, total: occurrences.size -%>
+<%- end -%>
+<%= render "solid_errors/errors/markdown/source_context", occurrences: occurrences -%>
+<%= render "solid_errors/errors/markdown/footer", error: error, occurrences: occurrences -%>

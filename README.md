@@ -428,11 +428,19 @@ app/views/
     │   ├── error_occurred.html.erb
     │   └── error_occurred.text.erb
     ├── errors
+    │   ├── markdown
+    │   │   ├── _footer.text.erb
+    │   │   ├── _header.text.erb
+    │   │   ├── _occurrence.text.erb
+    │   │   ├── _preamble.text.erb
+    │   │   └── _source_context.text.erb
     │   ├── _actions.html.erb
+    │   ├── _copy_markdown_button.html.erb
     │   ├── _error.html.erb
     │   ├── _row.html.erb
     │   ├── index.html.erb
-    │   └── show.html.erb
+    │   ├── show.html.erb
+    │   └── show.text.erb
     └── occurrences
         ├── _collection.html.erb
         └── _occurrence.html.erb
@@ -471,6 +479,21 @@ You can always take control of the views by creating your own views and/or parti
   </body>
 </html>
 ```
+
+#### Customizing the copied Markdown
+
+The "Copy Markdown" button on the error page copies the newest occurrence, and its menu copies the last 5, 10 or 25. The same Markdown is served at `/errors/:id.md?limit=5` (up to 25 occurrences) and returned by `error.to_markdown(limit: 5)`. It prints the error once, then each occurrence, then the source of each application frame once.
+
+It is rendered from `app/views/solid_errors/errors/show.text.erb` and the partials in `app/views/solid_errors/errors/markdown/`, so you can override any of them. The `_preamble` and `_footer` partials are empty, ready for instructions you want pasted with every error, such as a prompt for an LLM:
+
+```erb
+<%# app/views/solid_errors/errors/markdown/_preamble.text.erb %>
+<%# locals: (error:, occurrences:) -%>
+Investigate and fix the root cause of this error from our app. Add a test covering the failure.
+
+```
+
+The templates use the `text` format so that ERB does not HTML-escape exception messages and backtraces.
 
 
 ### Locales

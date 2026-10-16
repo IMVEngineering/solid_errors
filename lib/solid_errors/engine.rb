@@ -17,6 +17,10 @@ module SolidErrors
       end
     end
 
+    initializer "solid_errors.mime_types" do
+      Mime::Type.register "text/markdown", :md unless Mime[:md]
+    end
+
     initializer "solid_errors.active_record.error_subscriber" do
       Rails.error.subscribe(SolidErrors::Subscriber.new) if SolidErrors.enabled
     end
