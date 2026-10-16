@@ -181,6 +181,8 @@ You can configure Solid Errors via the Rails configuration object, under the `so
 * `email_subject` - A proc that builds the subject line for email notifications. See [Email notifications](#email-notifications) for more information.
 * `base_controller_class` - Specify a different controller as the base class for the Solid Errors controller. See [Authentication](#authentication) for more information.
 * `destroy_after` - If set, Solid Errors will periodically destroy resolved records that are older than the value specified. See [Automatically destroying old records](#automatically-destroying-old-records) for more information.
+* `current_actor` - A proc that gets the dashboard controller and returns the signed-in user as `{id:, name:}`. See [Claiming errors](#claiming-errors) for more information.
+* `assignees` - A proc that returns everyone an error can be claimed for, as an array of `{id:, name:}`. See [Claiming errors](#claiming-errors) for more information.
 * `ignored_errors` - Error classes, or their names, to never record, in addition to the built-in list in `SolidErrors::Subscriber::IGNORED_ERRORS`. For example, `config.solid_errors.ignored_errors = ["ActiveStorage::FileNotFoundError"]`.
 
 ### Database Configuration
@@ -350,8 +352,12 @@ Solid Errors publishes [Active Support notifications](https://guides.rubyonrails
 | --- | --- | --- |
 | `error_created.solid_errors` | An error is recorded for the first time | `:error`, `:occurrence` |
 | `error_reopened.solid_errors` | A resolved error occurs again | `:error`, `:occurrence` |
-| `error_resolved.solid_errors` | An error is marked as resolved | `:error` |
+| `error_resolved.solid_errors` | An error is marked as resolved | `:error`, `:actor` |
+| `error_claimed.solid_errors` | An error is claimed or reassigned, when [claiming](#claiming-errors) is on | `:error`, `:actor`, `:assignee` |
+| `error_unclaimed.solid_errors` | An error is unclaimed from the dashboard | `:error`, `:actor`, `:assignee` |
 | `occurrence_created.solid_errors` | Any occurrence is recorded, including those above | `:error`, `:occurrence` |
+
+`:actor` and `:assignee` are `{id:, name:}` hashes, or `nil` when no one is known, such as an error resolved outside the dashboard.
 
 ```ruby
 # config/initializers/solid_errors.rb
@@ -360,6 +366,40 @@ ActiveSupport::Notifications.subscribe(/\Aerror_(created|reopened)\.solid_errors
   SlackNotifier.post("#{error.exception_class}: #{error.message}")
 end
 ```
+
+#### Claiming errors
+
+Tell Solid Errors who your users are and the dashboard lets you claim an error for yourself, or assign it to a teammate, and shows a history of who claimed, resolved and reopened it. Both settings are procs, so they run on each request:
+
+```ruby
+# config/application.rb
+# The signed-in user, from the dashboard controller; return nil when no one is signed in
+config.solid_errors.current_actor = ->(controller) {
+  user = controller.current_user
+  {id: user.id, name: user.name} if user
+}
+# Everyone an error can be claimed for
+config.solid_errors.assignees = -> { User.developers.map { |user| {id: user.id, name: user.name} } }
+```
+
+Set either one, or both:
+
+* With `current_actor`, the dashboard offers "Claim for me", records who claimed, unclaimed and resolved each error, and adds a "Mine" filter to the errors list.
+* With `assignees`, the dashboard offers to assign an error to anyone in the list.
+
+Ids and names are stored as strings when the action happens, with no reference to your users table, so the history still reads correctly after a user is renamed or deleted. Anyone who can see the dashboard can claim, reassign or unclaim any error.
+
+Resolving an error clears its claim. When a resolved error occurs again, it is reopened without a claim.
+
+Claiming needs the `claimed_by_id` and `claimed_by_name` columns and the `solid_errors_events` table. New installs get them from `errors_schema.rb`. Existing installs can generate the migration:
+
+```bash
+bin/rails generate solid_errors:upgrade               # errors in their own "errors" database
+bin/rails generate solid_errors:upgrade --database primary  # errors in your app's database
+bin/rails db:migrate
+```
+
+Until both the configuration and the schema are in place, the dashboard shows nothing about claiming.
 
 #### Automatically destroying old records
 

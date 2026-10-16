@@ -2,6 +2,16 @@
 
 Follow this guide to upgrade your Solid Errors implementation to the next version
 
+## Claiming errors
+
+[Claiming errors](README.md#claiming-errors) adds `claimed_by_id` and `claimed_by_name` columns to `solid_errors` and a new `solid_errors_events` table. You only need them if you configure `current_actor` or `assignees`; without them, the dashboard works as before.
+
+Generate the migration for whatever database stores your errors, then run it:
+```bash
+bin/rails generate solid_errors:upgrade --database {name_of_errors_database}
+bin/rails db:migrate
+```
+
 ## Solid Errors 0.4.0
 
 We've added a `fingerprint` column to the `solid_errors` table and changed the `exception_class`, `message`, `severity`, and `source` columns to be limitless `text` type columns. This allows the unique index on the table to be on the single `fingerprint` column, which is a SHA256 hash of the `exception_class`, `message`, `severity`, and `source` columns. This change resolves problems with the unique index being too large as well as problems with one of the data columns being truncated. But, it requires a migration to update the `solid_errors` table.

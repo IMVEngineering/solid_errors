@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Claim errors for yourself or a teammate, and see who claimed, resolved and reopened each error, when you configure `current_actor` or `assignees`. Publish `error_claimed` and `error_unclaimed` notifications, add `:actor` to `error_resolved`, and add `solid_errors:upgrade` to generate the migration
+
 ## [0.9.0] - 2026-10-16
 
 - Record the controller action and filtered params, or the job and its filtered arguments, with each occurrence, and store records in the context as GlobalIDs ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/115))
