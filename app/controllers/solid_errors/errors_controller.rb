@@ -4,7 +4,7 @@ module SolidErrors
 
     before_action :set_error, only: %i[show update destroy]
 
-    helper_method :error_scope
+    helper_method :error_scope, :claim_filter
 
     # GET /errors
     def index
@@ -18,6 +18,7 @@ module SolidErrors
           occurrences_table[:id].count.as("occurrences_count"))
         .group(errors_table[:id])
         .order(recent_occurrence: :desc)
+      @errors = filter_by_claim(@errors) if claiming?
     end
 
     # GET /errors/1
@@ -28,6 +29,7 @@ module SolidErrors
 
     # PATCH/PUT /errors/1
     def update
+      @error.resolving_actor = current_actor
       @error.update!(error_params)
       redirect_to errors_path, notice: "Error marked as resolved."
     end
@@ -62,6 +64,22 @@ module SolidErrors
 
     def error_scope
       ActiveSupport::StringInquirer.new(params[:scope] || "unresolved")
+    end
+
+    # All, mine or unclaimed; mine only means something when the app says who is signed in
+    def claim_filter
+      filter = params[:claimed].to_s
+      return "all" if filter == "mine" && current_actor.nil?
+
+      %w[mine unclaimed].include?(filter) ? filter : "all"
+    end
+
+    def filter_by_claim(errors)
+      case claim_filter
+      when "mine" then errors.where(claimed_by_id: current_actor[:id])
+      when "unclaimed" then errors.where(claimed_by_id: nil)
+      else errors
+      end
     end
   end
 end

@@ -5,6 +5,23 @@ module SolidErrors
 
     http_basic_authenticate_with name: SolidErrors.username, password: SolidErrors.password if SolidErrors.password
 
+    helper_method :claiming?, :current_actor
+
+    private
+
+    def claiming?
+      SolidErrors.claiming?
+    end
+
+    # The signed-in user as {id:, name:}, when the app configured current_actor
+    def current_actor
+      return @current_actor if defined?(@current_actor)
+
+      @current_actor = (SolidErrors.actor_for(self) if claiming?)
+    end
+
+    public
+
     # adapted from: https://github.com/ddnexus/pagy/blob/master/gem/lib/pagy.rb
     OverflowError = Class.new(StandardError)
     class Page
