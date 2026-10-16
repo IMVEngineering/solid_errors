@@ -20,12 +20,26 @@
   </nav>
 </div>
 
+<% if claiming? %>
+  <nav class="mb-6 flex gap-2 text-sm" aria-label="Claim filter">
+    <% [["all", "All"], (["mine", "Mine"] if current_actor), ["unclaimed", "Unclaimed"]].compact.each do |filter, label| %>
+      <%= link_to label, errors_path(scope: error_scope, claimed: (filter unless filter == "all")), class: class_names(
+            "py-1 px-3 rounded-lg font-medium",
+            "bg-gray-100 text-gray-900" => claim_filter == filter,
+            "text-gray-500 hover:text-gray-700" => claim_filter != filter) %>
+    <% end %>
+  </nav>
+<% end %>
+
 <table class="min-w-full divide-y divide-gray-300">
   <thead>
     <tr>
       <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Error</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Count</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Last</th>
+      <% if claiming? %>
+        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Claimed by</th>
+      <% end %>
       <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-3">
         <span class="sr-only">Resolve</span>
       </th>

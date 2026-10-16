@@ -22,6 +22,11 @@ module SolidErrors
     }
 
     has_many :occurrences, class_name: "SolidErrors::Occurrence", dependent: :destroy
+    # Not dependent: :delete_all, which would query the events table in apps that haven't added it
+    has_many :events, class_name: "SolidErrors::Event"
+
+    # Who resolved or reopened the error in this update, as {id:, name:}; nil for a new occurrence
+    attr_accessor :resolving_actor
 
     validates :exception_class, presence: true
     validates :message, presence: true
@@ -30,6 +35,9 @@ module SolidErrors
     scope :resolved, -> { where.not(resolved_at: nil) }
     scope :unresolved, -> { where(resolved_at: nil) }
 
+    before_update :clear_claim, if: -> { will_save_change_to_resolved_at? && resolved? && SolidErrors.claiming_migrated? }
+    after_update :record_resolution_event, if: -> { saved_change_to_resolved_at? && SolidErrors.claiming? }
+    before_destroy :destroy_events, if: -> { SolidErrors.claiming_migrated? }
     after_update_commit :publish_resolved, if: -> { saved_change_to_resolved_at? && resolved? }
 
     def severity_emoji
@@ -56,6 +64,28 @@ module SolidErrors
       resolved_at.present?
     end
 
+    def claimed?
+      claimed_by_id.present?
+    end
+
+    # Claim the error for assignee, as {id:, name:}; actor is who did it
+    def claim!(assignee:, actor: nil)
+      transaction do
+        update!(claimed_by_id: assignee[:id], claimed_by_name: assignee[:name])
+        events.create!(action: "claimed", actor: actor, assignee: assignee)
+      end
+      ActiveSupport::Notifications.instrument("error_claimed.solid_errors", error: self, actor: actor, assignee: assignee)
+    end
+
+    def unclaim!(actor: nil)
+      assignee = claimed? ? {id: claimed_by_id, name: claimed_by_name} : nil
+      transaction do
+        update!(claimed_by_id: nil, claimed_by_name: nil)
+        events.create!(action: "unclaimed", actor: actor, assignee: assignee)
+      end
+      ActiveSupport::Notifications.instrument("error_unclaimed.solid_errors", error: self, actor: actor, assignee: assignee)
+    end
+
     MARKDOWN_OCCURRENCE_LIMIT = 25
 
     # Renders the error and its most recent occurrences from the
@@ -77,7 +107,19 @@ module SolidErrors
     private
 
     def publish_resolved
-      ActiveSupport::Notifications.instrument("error_resolved.solid_errors", error: self)
+      ActiveSupport::Notifications.instrument("error_resolved.solid_errors", error: self, actor: resolving_actor)
+    end
+
+    def clear_claim
+      self.claimed_by_id = self.claimed_by_name = nil
+    end
+
+    def record_resolution_event
+      events.create!(action: resolved? ? "resolved" : "reopened", actor: resolving_actor)
+    end
+
+    def destroy_events
+      SolidErrors::Event.where(error_id: id).delete_all
     end
   end
 end

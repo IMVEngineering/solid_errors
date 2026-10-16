@@ -2,6 +2,11 @@
       error: @error,
       show_actions: true %>
 
+<% if claiming? %>
+  <br>
+  <%= render "solid_errors/errors/history", error: @error %>
+<% end %>
+
 <br>
 <br>
 

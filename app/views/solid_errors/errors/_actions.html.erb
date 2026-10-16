@@ -10,5 +10,6 @@
     <%= render 'solid_errors/errors/delete_button', error: error %>
   <% else %>
     <%= render 'solid_errors/errors/resolve_button', error: error %>
+    <%= render 'solid_errors/errors/claim', error: error if claiming? %>
   <% end %>
 </div>

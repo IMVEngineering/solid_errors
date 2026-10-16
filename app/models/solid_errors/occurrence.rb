@@ -45,10 +45,9 @@ module SolidErrors
           .where(error: SolidErrors::Error.resolved)
           .where(created_at: ...SolidErrors.destroy_after.ago)
           .delete_all
-        SolidErrors::Error.resolved
-          .where
-          .missing(:occurrences)
-          .delete_all
+        cleared_errors = SolidErrors::Error.resolved.where.missing(:occurrences)
+        SolidErrors::Event.where(error_id: cleared_errors.select(:id)).delete_all if SolidErrors.claiming_migrated?
+        cleared_errors.delete_all
       end
     end
 
