@@ -79,6 +79,33 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#backtrace-application-#{occurrence.id} button[data-backtrace-toggle=full]"
   end
 
+  test "long unbroken messages and context values wrap instead of widening the page" do
+    long_value = "https://example.com/#{"x" * 500}"
+    @error.update!(message: long_value)
+    @error.occurrences.last.update!(context: {url: long_value})
+
+    get solid_errors.error_path(@error)
+
+    assert_select "pre.wrap-anywhere", text: long_value
+    assert_select "dd.wrap-anywhere code", text: long_value
+    assert_select "h1.wrap-anywhere"
+    assert_select "style", text: /\.wrap-anywhere\s*\{\s*overflow-wrap: anywhere/
+
+    get solid_errors.errors_path
+
+    assert_select "td pre.wrap-anywhere", text: long_value
+  end
+
+  test "backtrace source scrolls sideways so its lines keep their alignment" do
+    occurrence = @error.occurrences.last
+    occurrence.update!(backtrace: "#{Rails.root.join("config/routes.rb")}:8:in 'block in <main>'")
+
+    get solid_errors.error_path(@error)
+
+    assert_select "#backtrace-application-#{occurrence.id} pre.overflow-x-auto"
+    assert_select "#backtrace-application-#{occurrence.id} summary.wrap-anywhere"
+  end
+
   test "the dashboard links back to the host app's root" do
     get solid_errors.errors_path
 

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
+
 ## [0.9.0] - 2026-10-16
 
 - Record the controller action and filtered params, or the job and its filtered arguments, with each occurrence, and store records in the context as GlobalIDs ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/115))
