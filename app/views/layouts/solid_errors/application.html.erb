@@ -51,29 +51,6 @@
       document.querySelectorAll('[data-controller="fade"]').forEach(element => {
         fadeOut(element);
       });
-
-      // Copy links fetch their own href and put the body on the clipboard. If the
-      // clipboard is unavailable (non-secure origin) we never preventDefault, so
-      // the browser follows the link to the plain text instead.
-      document.addEventListener('click', event => {
-        const link = event.target.closest('[data-copy]')
-        if (!link || !navigator.clipboard) return
-
-        event.preventDefault()
-        event.stopPropagation()
-
-        const label = link.querySelector('span')
-        const original = label.textContent
-
-        fetch(link.href)
-          .then(response => response.text())
-          .then(text => navigator.clipboard.writeText(text))
-          .then(() => {
-            label.textContent = 'Copied!'
-            setTimeout(() => { label.textContent = original }, 2000)
-          })
-          .catch(() => { window.location = link.href })
-      });
     </script>
   </body>
 </html>

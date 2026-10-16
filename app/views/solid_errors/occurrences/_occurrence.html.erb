@@ -4,14 +4,9 @@
 
 <%= tag.section id: dom_id(occurrence), class: "" do %>
   <%= tag.details open: open do %>
-    <summary class="hover:bg-gray-50 p-2 rounded cursor-pointer flex items-center gap-3">
-      <span>
-        <%= time_tag seen_at, seen_at %>
-        (<em><%= time_ago_in_words(seen_at) %> ago</em>)
-      </span>
-      <%= render "solid_errors/errors/copy_button",
-            url: error_occurrence_path(occurrence.error_id, occurrence),
-            classes: "inline-flex items-center gap-1 text-sm font-medium cursor-pointer border rounded-lg py-1 px-2 bg-gray-100 text-initial border-gray-300 hover:ring-gray-200 hover:ring-4" %>
+    <summary class="hover:bg-gray-50 p-2 rounded cursor-pointer">
+      <%= time_tag seen_at, seen_at %>
+      (<em><%= time_ago_in_words(seen_at) %> ago</em>)
     </summary>
     <div class="">
       <dl class="ml-6">

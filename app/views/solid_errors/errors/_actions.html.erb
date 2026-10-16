@@ -5,10 +5,6 @@
     </svg>
     <span>Back to errors</span>
   <% end %>
-  <% if (latest_occurrence = error.occurrences.order(created_at: :desc).first) %>
-    <%= render "solid_errors/errors/copy_button",
-          url: error_occurrence_path(error, latest_occurrence) %>
-  <% end %>
   <% if error.resolved? %>
     <%= render 'solid_errors/errors/delete_button', error: error %>
   <% else %>

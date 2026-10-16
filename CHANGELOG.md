@@ -1,6 +1,5 @@
 ## [Unreleased]
 
-- Add a "Copy for LLM" button that copies an occurrence as an LLM-ready prompt, served from `/errors/:error_id/occurrences/:id.md` ([@bvalentino](https://github.com/fractaledmind/solid_errors/pull/97))
 - Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
 
 ## [0.7.0] - 2025-06-11
