@@ -5,10 +5,13 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%= render "layouts/solid_errors/style" %>
+    <%= render "layouts/solid_errors/style", nonce: content_security_policy_nonce %>
   </head>
   <body class="h-full flex flex-col pb-4">
     <main class="grow container mx-auto mt-4">
+      <% if defined?(main_app.root_path) %>
+        <%= link_to "← Back to main app", main_app.root_path, class: "text-sm text-blue-500 hover:underline decoration-blue-500" %>
+      <% end %>
       <%= content_for?(:content) ? yield(:content) : yield %>
     </main>
 
@@ -51,6 +54,87 @@
       document.querySelectorAll('[data-controller="fade"]').forEach(element => {
         fadeOut(element);
       });
+
+      // Backtrace filter toggle functionality
+      (function() {
+        const STORAGE_KEY = 'solid_errors_backtrace_filter';
+
+        function toggleBacktrace(button) {
+          const filter = button.getAttribute('data-backtrace-toggle');
+          const occurrenceId = button.getAttribute('data-occurrence-id');
+
+          // Toggle visibility
+          const appTrace = document.getElementById(`backtrace-application-${occurrenceId}`);
+          const fullTrace = document.getElementById(`backtrace-full-${occurrenceId}`);
+
+          if (filter === 'application') {
+            appTrace.removeAttribute('hidden');
+            fullTrace.setAttribute('hidden', '');
+          } else {
+            appTrace.setAttribute('hidden', '');
+            fullTrace.removeAttribute('hidden');
+          }
+
+          // Update button states for this occurrence
+          const occurrenceButtons = document.querySelectorAll(`[data-occurrence-id="${occurrenceId}"][data-backtrace-toggle]`);
+          occurrenceButtons.forEach(btn => {
+            if (btn === button) {
+              btn.classList.add('border-blue-500', 'text-blue-500');
+              btn.classList.remove('border-transparent', 'text-gray-500');
+            } else {
+              btn.classList.remove('border-blue-500', 'text-blue-500');
+              btn.classList.add('border-transparent', 'text-gray-500');
+            }
+          });
+
+          // Remember the choice; storage can be unavailable (private browsing)
+          try { sessionStorage.setItem(STORAGE_KEY, filter); } catch (e) {}
+        }
+
+        // Initialize on page load
+        let savedFilter = 'application';
+        try { savedFilter = sessionStorage.getItem(STORAGE_KEY) || savedFilter; } catch (e) {}
+
+        // Apply saved filter to all occurrences
+        if (savedFilter === 'full') {
+          document.querySelectorAll('[id^="backtrace-application-"]').forEach(el => el.setAttribute('hidden', ''));
+          document.querySelectorAll('[id^="backtrace-full-"]').forEach(el => el.removeAttribute('hidden'));
+
+          // Update button states
+          document.querySelectorAll('[data-backtrace-toggle]').forEach(btn => {
+            const filter = btn.getAttribute('data-backtrace-toggle');
+            if (filter === savedFilter) {
+              btn.classList.add('border-blue-500', 'text-blue-500');
+              btn.classList.remove('border-transparent', 'text-gray-500');
+            } else {
+              btn.classList.remove('border-blue-500', 'text-blue-500');
+              btn.classList.add('border-transparent', 'text-gray-500');
+            }
+          });
+        }
+
+        // Attach event listeners
+        document.querySelectorAll('[data-backtrace-toggle]').forEach(button => {
+          button.addEventListener('click', function() {
+            toggleBacktrace(this);
+          });
+        });
+      })();
+
+      var copyBtn = document.getElementById('copy-markdown');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+          var text = document.getElementById('error-markdown').content.textContent;
+          var span = copyBtn.querySelector('span');
+          var originalText = span.textContent;
+          navigator.clipboard.writeText(text).then(function() {
+            span.textContent = 'Copied!';
+            setTimeout(function() { span.textContent = originalText; }, 2000);
+          }).catch(function(err) {
+            alert('Failed to copy: ' + err);
+          });
+        });
+      }
     </script>
   </body>
 </html>

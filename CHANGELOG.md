@@ -2,6 +2,38 @@
 
 - Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
 
+## [0.9.0] - 2026-10-16
+
+- Record the controller action and filtered params, or the job and its filtered arguments, with each occurrence, and store records in the context as GlobalIDs ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/115))
+- Add `SolidErrors.migrated?` to check the errors database schema in your test suite ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/113))
+- Say in the error email subject when a resolved error was reopened, and add `email_subject` to build the subject yourself, including for error emails an app sends for its own events ([@namolnad](https://github.com/fractaledmind/solid_errors/pull/109))
+- Leave the dashboard stylesheet out of the error email ([@namolnad](https://github.com/fractaledmind/solid_errors/pull/110))
+- Read the documented `SOLIDERRORS_SEND_EMAILS`, `SOLIDERRORS_EMAIL_FROM`, `SOLIDERRORS_EMAIL_TO` and `SOLIDERRORS_EMAIL_SUBJECT_PREFIX` environment variables ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/114))
+- Fix `url_helper_name` and `url_options` being ignored when configured ([@namolnad](https://github.com/fractaledmind/solid_errors/pull/108))
+- Render the dashboard in apps that don't make the `:en` locale available ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/111))
+- Document the setup mistakes behind "Could not find table 'solid_errors'" ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/112))
+
+## [0.8.0] - 2026-10-13
+
+- Add `enabled` to turn off error tracking in an environment, such as test ([@kulturbande](https://github.com/fractaledmind/solid_errors/pull/96))
+- Add `ignored_errors` to extend the built-in list of errors that are never recorded ([@multiscan](https://github.com/fractaledmind/solid_errors/pull/98))
+- Add `email_every_occurrence = false` to email only new errors and resolved errors that occur again ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/105))
+- Publish `error_created`, `error_reopened`, `error_resolved` and `occurrence_created` Active Support notifications ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/107))
+- Add a "Copy Markdown" button to the error page ([@bvalentino](https://github.com/fractaledmind/solid_errors/pull/97))
+- Toggle between the application and full backtrace ([@namolnad](https://github.com/fractaledmind/solid_errors/pull/95))
+- Redesign the error email for email clients and link it to the occurrence ([@namolnad](https://github.com/fractaledmind/solid_errors/pull/94))
+- Link back to the host app from the dashboard ([@BarnabeD](https://github.com/fractaledmind/solid_errors/pull/83))
+- Document using Solid Errors in apps with `schema_format = :sql` ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/106))
+
+## [0.7.1] - 2026-10-13
+
+- Fix pagination links taking URL options such as `host` and `script_name` from request params ([@bruno-costanzo](https://github.com/fractaledmind/solid_errors/pull/99))
+- Add the CSP nonce to the inline style tag ([@armandmgt](https://github.com/fractaledmind/solid_errors/pull/92))
+- Stop the email loop when error email delivery fails ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/104))
+- Store occurrence context as JSON on MariaDB ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/101))
+- Render occurrences reported without a backtrace ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/103))
+- Require Rails >= 7.1 and Ruby >= 3.2, and test every supported combination ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/100))
+
 ## [0.7.0] - 2025-06-11
 
 - support ruby 3.4.0 style backtrace string ([@kuboon](https://github.com/fractaledmind/solid_errors/pull/74))
