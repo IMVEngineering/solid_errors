@@ -56,39 +56,22 @@ module SolidErrors
       resolved_at.present?
     end
 
-    def to_markdown
-      md = ""
-      md << "## Exception: #{exception_class}\n"
-      md << "**Severity:** #{severity} | **Source:** #{source}\n\n"
-      md << "### Message\n#{message}\n"
+    MARKDOWN_OCCURRENCE_LIMIT = 25
 
-      occurrence = occurrences.order(created_at: :desc).first
-      return md unless occurrence
+    # Renders the error and its most recent occurrences from the
+    # solid_errors/errors/markdown templates, which host apps can override.
+    # Rendered as `text` rather than `md` so ActionView's ERB handler skips
+    # HTML escaping (its escape_ignore_list covers text/plain).
+    def to_markdown(limit: 1)
+      limit = limit.to_i.clamp(1, MARKDOWN_OCCURRENCE_LIMIT)
+      occurrences = self.occurrences.order(created_at: :desc).limit(limit).to_a
 
-      backtrace = occurrence.parsed_backtrace
-
-      md << "\n### Backtrace\n"
-      backtrace.lines.each do |line|
-        md << (line.filtered_method ? line.to_s : line.unparsed_line) << "\n"
-      end
-
-      app_lines = backtrace.application_lines
-      if app_lines.any?
-        md << "\n### Source Context\n"
-        app_lines.each do |line|
-          md << "#### #{line}\n"
-          md << "```ruby\n"
-          line.source.each { |n, code| md << "#{n}: #{code.chomp}\n" }
-          md << "```\n\n"
-        end
-      end
-
-      if occurrence.context.present?
-        md << "### Request Context\n"
-        occurrence.context.each { |k, v| md << "- #{k}: #{v}\n" }
-      end
-
-      md
+      SolidErrors::ErrorsController.render(
+        template: "solid_errors/errors/show",
+        formats: [:text],
+        layout: false,
+        locals: {error: self, occurrences: occurrences}
+      )
     end
 
     private

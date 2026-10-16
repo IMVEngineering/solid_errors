@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Copy the last 5, 10 or 25 occurrences from the "Copy Markdown" menu, serve the Markdown at `/errors/:id.md`, and render it from views that apps can override
+
 ## [0.9.0] - 2026-10-16
 
 - Record the controller action and filtered params, or the job and its filtered arguments, with each occurrence, and store records in the context as GlobalIDs ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/115))
