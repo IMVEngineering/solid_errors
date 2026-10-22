@@ -22,7 +22,7 @@
 
 <% if claiming? %>
   <nav class="mb-6 flex gap-2 text-sm" aria-label="Claim filter">
-    <% [["all", "All"], (["mine", "Mine"] if current_actor), ["unclaimed", "Unclaimed"]].compact.each do |filter, label| %>
+    <% [["all", "All"], (["mine", "Mine"] if solid_errors_actor), ["unclaimed", "Unclaimed"]].compact.each do |filter, label| %>
       <%= link_to label, errors_path(scope: error_scope, claimed: (filter unless filter == "all")), class: class_names(
             "py-1 px-3 rounded-lg font-medium",
             "bg-gray-100 text-gray-900" => claim_filter == filter,

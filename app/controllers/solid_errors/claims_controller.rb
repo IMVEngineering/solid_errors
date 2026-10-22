@@ -10,13 +10,13 @@ module SolidErrors
       assignee = find_assignee(params[:assignee_id])
       return redirect_to(error_path(@error), alert: "That person can't claim errors.") unless assignee
 
-      @error.claim!(assignee: assignee, actor: current_actor)
+      @error.claim!(assignee: assignee, actor: solid_errors_actor)
       redirect_to error_path(@error), notice: "Error claimed for #{assignee[:name]}."
     end
 
     # DELETE /errors/1/claim
     def destroy
-      @error.unclaim!(actor: current_actor)
+      @error.unclaim!(actor: solid_errors_actor)
       redirect_to error_path(@error), notice: "Error unclaimed."
     end
 
@@ -32,7 +32,7 @@ module SolidErrors
 
     # The signed-in user may always claim for themselves, even when they aren't an assignee
     def find_assignee(id)
-      [current_actor, *SolidErrors.assignee_list].compact.find { |assignee| assignee[:id] == id.to_s }
+      [solid_errors_actor, *SolidErrors.assignee_list].compact.find { |assignee| assignee[:id] == id.to_s }
     end
   end
 end
