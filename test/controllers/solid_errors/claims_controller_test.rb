@@ -85,6 +85,11 @@ class SolidErrors::ClaimsControllerTest < ActionDispatch::IntegrationTest
     assert_equal %w[resolved], @error.events.pluck(:action)
   end
 
+  test "the dashboard does not shadow a current_actor method on the app's base controller" do
+    refute SolidErrors::ApplicationController.method_defined?(:current_actor, false)
+    refute SolidErrors::ApplicationController.private_method_defined?(:current_actor, false)
+  end
+
   test "claim routes are not found without claiming configured" do
     SolidErrors.current_actor = nil
     SolidErrors.assignees = nil

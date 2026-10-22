@@ -38,7 +38,7 @@ module SolidErrors
 
     # PATCH/PUT /errors/1
     def update
-      @error.resolving_actor = current_actor
+      @error.resolving_actor = solid_errors_actor
       @error.update!(error_params)
       redirect_to errors_path, notice: "Error marked as resolved."
     end
@@ -78,14 +78,14 @@ module SolidErrors
     # All, mine or unclaimed; mine only means something when the app says who is signed in
     def claim_filter
       filter = params[:claimed].to_s
-      return "all" if filter == "mine" && current_actor.nil?
+      return "all" if filter == "mine" && solid_errors_actor.nil?
 
       %w[mine unclaimed].include?(filter) ? filter : "all"
     end
 
     def filter_by_claim(errors)
       case claim_filter
-      when "mine" then errors.where(claimed_by_id: current_actor[:id])
+      when "mine" then errors.where(claimed_by_id: solid_errors_actor[:id])
       when "unclaimed" then errors.where(claimed_by_id: nil)
       else errors
       end

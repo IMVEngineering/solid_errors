@@ -1,5 +1,5 @@
 <%# locals: (error:) -%>
-<% me = current_actor %>
+<% me = solid_errors_actor %>
 <% options = [] %>
 <% options << ["Claim for me", me[:id]] if me %>
 <% SolidErrors.assignee_list.each { |assignee| options << [assignee[:name], assignee[:id]] unless assignee[:id] == me&.dig(:id) } %>

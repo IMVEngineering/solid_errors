@@ -5,7 +5,7 @@ module SolidErrors
 
     http_basic_authenticate_with name: SolidErrors.username, password: SolidErrors.password if SolidErrors.password
 
-    helper_method :claiming?, :current_actor
+    helper_method :claiming?, :solid_errors_actor
 
     private
 
@@ -13,11 +13,12 @@ module SolidErrors
       SolidErrors.claiming?
     end
 
-    # The signed-in user as {id:, name:}, when the app configured current_actor
-    def current_actor
-      return @current_actor if defined?(@current_actor)
+    # The signed-in user as {id:, name:}, when the app configured current_actor.
+    # Prefixed so it doesn't shadow a current_actor the app's base controller may define.
+    def solid_errors_actor
+      return @solid_errors_actor if defined?(@solid_errors_actor)
 
-      @current_actor = (SolidErrors.actor_for(self) if claiming?)
+      @solid_errors_actor = (SolidErrors.actor_for(self) if claiming?)
     end
 
     public
