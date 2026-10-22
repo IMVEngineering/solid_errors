@@ -1,0 +1,20 @@
+<%# locals: (error:) -%>
+<% me = solid_errors_actor %>
+<% options = [] %>
+<% options << ["Claim for me", me[:id]] if me %>
+<% SolidErrors.assignee_list.each { |assignee| options << [assignee[:name], assignee[:id]] unless assignee[:id] == me&.dig(:id) } %>
+<% if error.claimed? %>
+  <span>Claimed by <strong><%= error.claimed_by_name %></strong></span>
+<% end %>
+<% if options.any? %>
+  <%= form_with url: error_claim_path(error), method: :post, class: "inline-flex items-center gap-2" do %>
+    <label for="assignee_id" class="sr-only">Claim for</label>
+    <%= select_tag :assignee_id, options_for_select(options, error.claimed_by_id), class: "border rounded-lg py-3 px-3 bg-white border-gray-300" %>
+    <button type="submit" class="inline-flex items-center justify-center gap-2 font-medium cursor-pointer border rounded-lg py-3 px-5 bg-transparent text-blue-500 border-blue-500 hover:ring-blue-200 hover:ring-8">
+      <%= error.claimed? ? "Reassign" : "Claim" %>
+    </button>
+  <% end %>
+<% end %>
+<% if error.claimed? %>
+  <%= button_to "Unclaim", error_claim_path(error), method: :delete, class: "inline-flex items-center justify-center gap-2 font-medium cursor-pointer border rounded-lg py-3 px-5 bg-gray-100 text-initial border-gray-300 hover:ring-gray-200 hover:ring-8" %>
+<% end %>

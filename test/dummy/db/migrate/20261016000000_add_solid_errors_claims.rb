@@ -1,0 +1,17 @@
+class AddSolidErrorsClaims < ActiveRecord::Migration[7.1]
+  def change
+    add_column :solid_errors, :claimed_by_id, :string
+    add_column :solid_errors, :claimed_by_name, :string
+    add_index :solid_errors, :claimed_by_id
+
+    create_table :solid_errors_events do |t|
+      t.references :error, null: false, foreign_key: {to_table: :solid_errors}
+      t.string :action, null: false
+      t.string :actor_id
+      t.string :actor_name
+      t.string :assignee_id
+      t.string :assignee_name
+      t.datetime :created_at, null: false
+    end
+  end
+end

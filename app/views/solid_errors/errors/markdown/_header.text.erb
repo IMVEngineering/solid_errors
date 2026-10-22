@@ -1,0 +1,9 @@
+<%# locals: (error:, occurrences:) -%>
+## Exception: <%= error.exception_class %>
+**Severity:** <%= error.severity %> | **Source:** <%= error.source %>
+<%- if occurrences.size > 1 -%>
+**Occurrences:** the <%= occurrences.size %> most recent of <%= error.occurrences.count %>
+<%- end -%>
+
+### Message
+<%= error.message %>

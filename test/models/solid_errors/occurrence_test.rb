@@ -27,6 +27,19 @@ class SolidErrors::OccurrenceTest < ActiveSupport::TestCase
     end
   end
 
+  test "destroying old resolved errors also destroys their events" do
+    SolidErrors.destroy_after = 1.day
+    SolidErrors.assignees = -> { [] }
+    simulate_99_old_exceptions(:unresolved)
+    SolidErrors::Error.last.update!(resolved_at: Time.current)
+
+    assert_difference -> { SolidErrors::Event.count }, -1 do
+      Rails.error.report(StandardError.new("oof"))
+    end
+  ensure
+    SolidErrors.assignees = nil
+  end
+
   test "not destroy if errors are unresolved" do
     SolidErrors.destroy_after = 1.day
     simulate_99_old_exceptions(:unresolved)
@@ -37,6 +50,18 @@ class SolidErrors::OccurrenceTest < ActiveSupport::TestCase
         Rails.error.report(StandardError.new("oof"))
       end
     end
+  end
+
+  test "context reads back as a hash when the database reports its json column as text" do
+    # MariaDB aliases JSON to LONGTEXT, so Rails sees a text column there
+    ActiveRecord::Base.connection.change_column :solid_errors_occurrences, :context, :text
+    SolidErrors::Occurrence.reset_column_information
+
+    Rails.error.report(StandardError.new("oof"), context: {user_id: 1})
+
+    assert_equal({"user_id" => 1}, SolidErrors::Occurrence.last.reload.context)
+  ensure
+    SolidErrors::Occurrence.reset_column_information
   end
 
   private
