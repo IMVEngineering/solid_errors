@@ -382,6 +382,8 @@ config.solid_errors.current_actor = ->(controller) {
 config.solid_errors.assignees = -> { User.developers.map { |user| {id: user.id, name: user.name} } }
 ```
 
+`current_actor` gets the Solid Errors controller, not one of your app's controllers. It inherits from `ActionController::Base` unless you set [`base_controller_class`](#authentication), so a `current_user` your app defines in its own `ApplicationController` is only there when `base_controller_class` names that controller. If that method is private, call it with `controller.send(:current_user)`.
+
 Set either one, or both:
 
 * With `current_actor`, the dashboard offers "Claim for me", records who claimed, unclaimed and resolved each error, and adds a "Mine" filter to the errors list.
