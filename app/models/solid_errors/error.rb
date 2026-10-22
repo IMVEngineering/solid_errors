@@ -93,7 +93,8 @@ module SolidErrors
     # Rendered as `text` rather than `md` so ActionView's ERB handler skips
     # HTML escaping (its escape_ignore_list covers text/plain).
     def to_markdown(limit: 1)
-      limit = limit.to_i.clamp(1, MARKDOWN_OCCURRENCE_LIMIT)
+      # A limit from request params may be an array or hash, such as ?limit[]=5; treat it as the default
+      limit = (limit.respond_to?(:to_i) ? limit.to_i : 1).clamp(1, MARKDOWN_OCCURRENCE_LIMIT)
       occurrences = self.occurrences.order(created_at: :desc).limit(limit).to_a
 
       SolidErrors::ErrorsController.render(

@@ -39,6 +39,16 @@ class SolidErrors::ErrorsMarkdownTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.body.scan("## Occurrence").size
   end
 
+  test "treats a non-scalar limit as the default" do
+    get "#{solid_errors.error_path(@error, format: :md)}?limit[]=2"
+    assert_response :success
+    assert_equal 1, response.body.scan("## Occurrence").size
+
+    get "#{solid_errors.error_path(@error, format: :md)}?limit[a]=2"
+    assert_response :success
+    assert_equal 1, response.body.scan("## Occurrence").size
+  end
+
   test "prints source context once per application frame across occurrences" do
     routes = Rails.root.join("config/routes.rb")
     line = File.readlines(routes).index { |code| code.include?("mount SolidErrors::Engine") } + 1
