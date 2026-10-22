@@ -9,6 +9,8 @@ module SolidErrors
 
       assignee = find_assignee(params[:assignee_id])
       return redirect_to(error_path(@error), alert: "That person can't claim errors.") unless assignee
+      # Such as clicking Reassign with the current claimant still selected
+      return redirect_to(error_path(@error)) if @error.claimed_by_id == assignee[:id]
 
       @error.claim!(assignee: assignee, actor: solid_errors_actor)
       redirect_to error_path(@error), notice: "Error claimed for #{assignee[:name]}."
