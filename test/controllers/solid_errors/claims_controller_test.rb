@@ -75,6 +75,16 @@ class SolidErrors::ClaimsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Ann", @error.events.last.actor_name
   end
 
+  test "refuses to claim an error that was resolved since the page loaded" do
+    @error.update!(resolved_at: Time.current)
+
+    post solid_errors.error_claim_path(@error), params: {assignee_id: "1"}
+
+    assert_redirected_to solid_errors.error_path(@error)
+    assert_nil @error.reload.claimed_by_id
+    assert_equal %w[resolved], @error.events.pluck(:action)
+  end
+
   test "claim routes are not found without claiming configured" do
     SolidErrors.current_actor = nil
     SolidErrors.assignees = nil

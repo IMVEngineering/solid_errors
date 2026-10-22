@@ -5,6 +5,8 @@ module SolidErrors
 
     # POST /errors/1/claim
     def create
+      return redirect_to(error_path(@error), alert: "Resolved errors can't be claimed.") if @error.resolved?
+
       assignee = find_assignee(params[:assignee_id])
       return redirect_to(error_path(@error), alert: "That person can't claim errors.") unless assignee
 
