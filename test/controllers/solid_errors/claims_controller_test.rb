@@ -55,6 +55,16 @@ class SolidErrors::ClaimsControllerTest < ActionDispatch::IntegrationTest
     assert_nil @error.reload.claimed_by_id
   end
 
+  test "shows the claim controls in their own row, not the action bar" do
+    @error.claim!(assignee: BOB, actor: ANN)
+
+    get solid_errors.error_path(@error)
+
+    assert_select "#error-claim form[action='#{solid_errors.error_claim_path(@error)}']", count: 2
+    assert_select "#error-claim #error-history"
+    assert_select "#error-actions form[action='#{solid_errors.error_claim_path(@error)}']", count: 0
+  end
+
   test "unclaims an error" do
     @error.claim!(assignee: BOB, actor: BOB)
 
