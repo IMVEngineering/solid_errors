@@ -16,6 +16,8 @@ module SolidErrors
 
     # DELETE /errors/1/claim
     def destroy
+      return redirect_to(error_path(@error), alert: "That error isn't claimed.") unless @error.claimed?
+
       @error.unclaim!(actor: solid_errors_actor)
       redirect_to error_path(@error), notice: "Error unclaimed."
     end

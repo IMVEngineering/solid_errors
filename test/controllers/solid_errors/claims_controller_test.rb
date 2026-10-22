@@ -75,6 +75,21 @@ class SolidErrors::ClaimsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Ann", @error.events.last.actor_name
   end
 
+  test "unclaiming an error no one has claimed records nothing and publishes nothing" do
+    @error.claim!(assignee: BOB, actor: BOB)
+    @error.update!(resolved_at: Time.current)
+    published = []
+    callback = ->(*, payload) { published << payload }
+
+    ActiveSupport::Notifications.subscribed(callback, "error_unclaimed.solid_errors") do
+      delete solid_errors.error_claim_path(@error)
+    end
+
+    assert_redirected_to solid_errors.error_path(@error)
+    assert_empty published
+    assert_equal %w[claimed resolved], @error.events.order(:id).pluck(:action)
+  end
+
   test "refuses to claim an error that was resolved since the page loaded" do
     @error.update!(resolved_at: Time.current)
 
