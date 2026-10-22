@@ -90,6 +90,21 @@ class SolidErrors::ClaimsControllerTest < ActionDispatch::IntegrationTest
     assert_equal %w[claimed resolved], @error.events.order(:id).pluck(:action)
   end
 
+  test "reassigning an error to the person who already has it records nothing and publishes nothing" do
+    @error.claim!(assignee: BOB, actor: ANN)
+    published = []
+    callback = ->(*, payload) { published << payload }
+
+    ActiveSupport::Notifications.subscribed(callback, "error_claimed.solid_errors") do
+      post solid_errors.error_claim_path(@error), params: {assignee_id: "2"}
+    end
+
+    assert_redirected_to solid_errors.error_path(@error)
+    assert_empty published
+    assert_equal "Bob", @error.reload.claimed_by_name
+    assert_equal %w[claimed], @error.events.pluck(:action)
+  end
+
   test "refuses to claim an error that was resolved since the page loaded" do
     @error.update!(resolved_at: Time.current)
 
