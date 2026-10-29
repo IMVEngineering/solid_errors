@@ -1,6 +1,6 @@
 module SolidErrors
   class ErrorsController < ApplicationController
-    around_action :force_english_locale!
+    around_action :use_english_when_available
 
     before_action :set_error, only: %i[show update destroy]
 
@@ -21,9 +21,18 @@ module SolidErrors
     end
 
     # GET /errors/1
+    # GET /errors/1.md?limit=5
     def show
-      @page = Page.new(@error.occurrences, params)
-      @occurrences = @error.occurrences.offset(@page.offset).limit(@page.items).order(created_at: :desc)
+      respond_to do |format|
+        format.html do
+          @page = Page.new(@error.occurrences, params)
+          @occurrences = @error.occurrences.offset(@page.offset).limit(@page.items).order(created_at: :desc)
+        end
+        format.md do
+          # Served as text/plain so browsers display it inline instead of downloading it
+          render plain: @error.to_markdown(limit: params[:limit]), content_type: "text/plain"
+        end
+      end
     end
 
     # PATCH/PUT /errors/1
@@ -53,7 +62,10 @@ module SolidErrors
       @error = Error.find(params[:id])
     end
 
-    def force_english_locale!(&action)
+    # The dashboard's strings ship in English only; apps that don't allow :en keep their own locale
+    def use_english_when_available(&action)
+      return action.call unless I18n.locale_available?(:en)
+
       I18n.with_locale(:en, &action)
     end
 

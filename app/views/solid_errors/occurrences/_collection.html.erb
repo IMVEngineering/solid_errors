@@ -10,7 +10,7 @@
         <p class="text-right">
           <% page_count = page.count %>
           <% if page_count.zero? %>
-            No posts found
+            No occurrences found
           <% elsif page.pages == 1 %>
             <strong><%= page_count %></strong> total
           <% else %>
@@ -20,25 +20,25 @@
 
         <nav aria-label="Pages">
           <% if (first_page = page.first) %>
-            <a href="<%= url_for(params.to_unsafe_hash.merge(page: first_page)) %>" aria-label="First" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&laquo;</a>
+            <a href="<%= url_for(page: first_page, items: params[:items]) %>" aria-label="First" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&laquo;</a>
           <% else %>
             <a role="link" aria-disabled="true" aria-label="First" class="border text-gray-500 bg-white py-1 px-2">&laquo;</a>
           <% end %>
 
           <% if (prev_page = page.prev) %>
-            <a href="<%= url_for(params.to_unsafe_hash.merge(page: prev_page)) %>" aria-label="Previous" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&lsaquo;</a>
+            <a href="<%= url_for(page: prev_page, items: params[:items]) %>" aria-label="Previous" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&lsaquo;</a>
           <% else %>
             <a role="link" aria-disabled="true" aria-label="Previous" class="border text-gray-500 bg-white py-1 px-2">&lsaquo;</a>
           <% end %>
 
           <% if (next_page = page.next) %>
-            <a href="<%= url_for(params.to_unsafe_hash.merge(page: next_page)) %>" aria-label="Next" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&rsaquo;</a>
+            <a href="<%= url_for(page: next_page, items: params[:items]) %>" aria-label="Next" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&rsaquo;</a>
           <% else %>
             <a role="link" aria-disabled="true" aria-label="Next" class="border text-gray-500 bg-white py-1 px-2">&rsaquo;</a>
           <% end %>
 
           <% if (last_page = page.last) %>
-            <a href="<%= url_for(params.to_unsafe_hash.merge(page: last_page)) %>" aria-label="Last" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&raquo;</a>
+            <a href="<%= url_for(page: last_page, items: params[:items]) %>" aria-label="Last" class="border border-black text-black bg-white py-1 px-2 cursor-pointer hover:bg-black hover:text-white">&raquo;</a>
           <% else %>
             <a role="link" aria-disabled="true" aria-label="Last" class="border text-gray-500 bg-white py-1 px-2">&raquo;</a>
           <% end %>
@@ -53,7 +53,7 @@
             collection: occurrences, as: :occurrence %>
     <% else %>
       <div class="flex items-center justify-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-list-ul" viewBox="0 0 16 16">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list-ul" viewBox="0 0 16 16">
           <path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
         </svg>
         <span class="text-2xl">No occurrences yet&hellip;</span>

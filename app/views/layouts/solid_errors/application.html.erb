@@ -5,10 +5,13 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%= render "layouts/solid_errors/style" %>
+    <%= render "layouts/solid_errors/style", nonce: content_security_policy_nonce %>
   </head>
   <body class="h-full flex flex-col pb-4">
-    <main class="grow container mx-auto mt-4">
+    <main class="grow container min-w-0 mx-auto mt-4">
+      <% if defined?(main_app.root_path) %>
+        <%= link_to "← Back to main app", main_app.root_path, class: "text-sm text-blue-500 hover:underline decoration-blue-500" %>
+      <% end %>
       <%= content_for?(:content) ? yield(:content) : yield %>
     </main>
 
@@ -52,28 +55,123 @@
         fadeOut(element);
       });
 
-      // Copy links fetch their own href and put the body on the clipboard. If the
-      // clipboard is unavailable (non-secure origin) we never preventDefault, so
-      // the browser follows the link to the plain text instead.
-      document.addEventListener('click', event => {
-        const link = event.target.closest('[data-copy]')
-        if (!link || !navigator.clipboard) return
+      // Backtrace filter toggle functionality
+      (function() {
+        const STORAGE_KEY = 'solid_errors_backtrace_filter';
 
-        event.preventDefault()
-        event.stopPropagation()
+        function toggleBacktrace(button) {
+          const filter = button.getAttribute('data-backtrace-toggle');
+          const occurrenceId = button.getAttribute('data-occurrence-id');
 
-        const label = link.querySelector('span')
-        const original = label.textContent
+          // Toggle visibility
+          const appTrace = document.getElementById(`backtrace-application-${occurrenceId}`);
+          const fullTrace = document.getElementById(`backtrace-full-${occurrenceId}`);
 
-        fetch(link.href)
-          .then(response => response.text())
-          .then(text => navigator.clipboard.writeText(text))
-          .then(() => {
-            label.textContent = 'Copied!'
-            setTimeout(() => { label.textContent = original }, 2000)
-          })
-          .catch(() => { window.location = link.href })
-      });
+          if (filter === 'application') {
+            appTrace.removeAttribute('hidden');
+            fullTrace.setAttribute('hidden', '');
+          } else {
+            appTrace.setAttribute('hidden', '');
+            fullTrace.removeAttribute('hidden');
+          }
+
+          // Update button states for this occurrence
+          const occurrenceButtons = document.querySelectorAll(`[data-occurrence-id="${occurrenceId}"][data-backtrace-toggle]`);
+          occurrenceButtons.forEach(btn => {
+            if (btn === button) {
+              btn.classList.add('border-blue-500', 'text-blue-500');
+              btn.classList.remove('border-transparent', 'text-gray-500');
+            } else {
+              btn.classList.remove('border-blue-500', 'text-blue-500');
+              btn.classList.add('border-transparent', 'text-gray-500');
+            }
+          });
+
+          // Remember the choice; storage can be unavailable (private browsing)
+          try { sessionStorage.setItem(STORAGE_KEY, filter); } catch (e) {}
+        }
+
+        // Initialize on page load
+        let savedFilter = 'application';
+        try { savedFilter = sessionStorage.getItem(STORAGE_KEY) || savedFilter; } catch (e) {}
+
+        // Apply saved filter to all occurrences
+        if (savedFilter === 'full') {
+          document.querySelectorAll('[id^="backtrace-application-"]').forEach(el => el.setAttribute('hidden', ''));
+          document.querySelectorAll('[id^="backtrace-full-"]').forEach(el => el.removeAttribute('hidden'));
+
+          // Update button states
+          document.querySelectorAll('[data-backtrace-toggle]').forEach(btn => {
+            const filter = btn.getAttribute('data-backtrace-toggle');
+            if (filter === savedFilter) {
+              btn.classList.add('border-blue-500', 'text-blue-500');
+              btn.classList.remove('border-transparent', 'text-gray-500');
+            } else {
+              btn.classList.remove('border-blue-500', 'text-blue-500');
+              btn.classList.add('border-transparent', 'text-gray-500');
+            }
+          });
+        }
+
+        // Attach event listeners
+        document.querySelectorAll('[data-backtrace-toggle]').forEach(button => {
+          button.addEventListener('click', function() {
+            toggleBacktrace(this);
+          });
+        });
+      })();
+
+      // Copy links are real links: the click only becomes a copy when the clipboard
+      // is reachable, so cmd-click and insecure origins open the markdown instead.
+      (function() {
+        var main = document.querySelector('[data-copy-markdown-main]');
+        if (!main) return;
+        var label = main.querySelector('span');
+        var originalText = label.textContent;
+
+        function fetchText(url) {
+          return fetch(url, { credentials: 'same-origin' }).then(function(response) {
+            if (!response.ok) throw new Error(response.statusText);
+            return response.text();
+          });
+        }
+
+        function copy(url) {
+          var text = fetchText(url);
+          if (window.ClipboardItem && navigator.clipboard.write) {
+            // Safari only allows a clipboard write during the click, so hand it the pending text
+            var item = new ClipboardItem({ 'text/plain': text.then(function(t) { return new Blob([t], { type: 'text/plain' }); }) });
+            return navigator.clipboard.write([item]).catch(function() {
+              return text.then(function(t) { return navigator.clipboard.writeText(t); });
+            });
+          }
+          return text.then(function(t) { return navigator.clipboard.writeText(t); });
+        }
+
+        document.querySelectorAll('a[data-copy-markdown]').forEach(function(link) {
+          link.addEventListener('click', function(event) {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            if (!window.isSecureContext || !navigator.clipboard) return;
+            event.preventDefault();
+
+            var menu = link.closest('details');
+            if (menu) menu.removeAttribute('open');
+
+            copy(link.href).then(function() {
+              label.textContent = 'Copied!';
+              setTimeout(function() { label.textContent = originalText; }, 2000);
+            }, function() {
+              window.location.href = link.href;
+            });
+          });
+        });
+
+        document.addEventListener('click', function(event) {
+          document.querySelectorAll('details.copy-markdown-menu[open]').forEach(function(menu) {
+            if (!menu.contains(event.target)) menu.removeAttribute('open');
+          });
+        });
+      })();
     </script>
   </body>
 </html>
