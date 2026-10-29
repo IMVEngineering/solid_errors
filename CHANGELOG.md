@@ -1,8 +1,13 @@
 ## [Unreleased]
 
-- Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
 - Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
 - Copy the last 5, 10 or 25 occurrences from the "Copy Markdown" menu, serve the Markdown at `/errors/:id.md`, and render it from views that apps can override
+
+## [0.9.1] - 2026-10-19
+
+- Record request params and job arguments only when `record_params` or `record_arguments` is set. 0.9.0 recorded and emailed them for every occurrence, filtered only by `filter_parameters`, which misses positional arguments, mail delivery jobs and webhook payloads. If that matters for your app, review occurrences recorded under 0.9.0 ([@fractaledmind](https://github.com/fractaledmind/solid_errors/pull/120))
+- Fix the error page raising when an error has no occurrences ([@dchacke](https://github.com/fractaledmind/solid_errors/pull/119))
+- Add a dark mode to the dashboard that follows the operating system ([@dchacke](https://github.com/fractaledmind/solid_errors/pull/118))
 
 ## [0.9.0] - 2026-10-16
 
