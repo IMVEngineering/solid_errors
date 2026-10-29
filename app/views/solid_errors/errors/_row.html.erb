@@ -1,5 +1,5 @@
 <%# locals: (error:) -%>
-<tr id="<%= dom_id(error) %>" class="even:bg-gray-50 align-top">
+<tr class="even:bg-gray-50 align-top">
   <td scope="col" class="py-4 pl-4 pr-3 font-medium text-gray-900 sm:pl-3 wrap-anywhere">
     <div>
       <%= error.severity_emoji %>
@@ -20,9 +20,6 @@
       <%= time_tag last_seen_at, time_ago_in_words(last_seen_at, scope: 'datetime.distance_in_words.short') %>
     </abbr>
   </td>
-  <% if claiming? %>
-    <td class="whitespace-nowrap px-3 py-4 pt-7 text-gray-500"><%= error.claimed_by_name %></td>
-  <% end %>
   <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
     <% if error.resolved? %>
       <%= render 'solid_errors/errors/delete_button', error: error %>

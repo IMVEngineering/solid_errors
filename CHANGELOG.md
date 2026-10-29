@@ -3,7 +3,6 @@
 - Fix `undefined method 'bootstrap_svg'` crash on the error page when an error has no occurrences
 - Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
 - Copy the last 5, 10 or 25 occurrences from the "Copy Markdown" menu, serve the Markdown at `/errors/:id.md`, and render it from views that apps can override
-- Claim errors for yourself or a teammate, and see who claimed, resolved and reopened each error, when you configure `current_actor` or `assignees`. Publish `error_claimed` and `error_unclaimed` notifications, add `:actor` to `error_resolved`, and add `solid_errors:upgrade` to generate the migration
 
 ## [0.9.0] - 2026-10-16
 

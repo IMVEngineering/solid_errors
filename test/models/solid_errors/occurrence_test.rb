@@ -27,19 +27,6 @@ class SolidErrors::OccurrenceTest < ActiveSupport::TestCase
     end
   end
 
-  test "destroying old resolved errors also destroys their events" do
-    SolidErrors.destroy_after = 1.day
-    SolidErrors.assignees = -> { [] }
-    simulate_99_old_exceptions(:unresolved)
-    SolidErrors::Error.last.update!(resolved_at: Time.current)
-
-    assert_difference -> { SolidErrors::Event.count }, -1 do
-      Rails.error.report(StandardError.new("oof"))
-    end
-  ensure
-    SolidErrors.assignees = nil
-  end
-
   test "not destroy if errors are unresolved" do
     SolidErrors.destroy_after = 1.day
     simulate_99_old_exceptions(:unresolved)

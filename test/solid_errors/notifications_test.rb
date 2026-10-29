@@ -33,34 +33,7 @@ class SolidErrors::NotificationsTest < ActiveSupport::TestCase
 
     events = capture_events { error.update!(resolved_at: Time.current) }
 
-    assert_equal [["error_resolved", {error: error, actor: nil}]], events
-  end
-
-  test "error_resolved says who resolved the error" do
-    report_raised_error("oof")
-    error = SolidErrors::Error.last
-    ann = {id: "1", name: "Ann"}
-
-    events = capture_events { error.update!(resolved_at: Time.current, resolving_actor: ann) }
-
-    assert_equal ann, events.sole.last[:actor]
-  end
-
-  test "claiming and unclaiming publish error_claimed and error_unclaimed" do
-    report_raised_error("oof")
-    error = SolidErrors::Error.last
-    ann = {id: "1", name: "Ann"}
-    bob = {id: "2", name: "Bob"}
-
-    events = capture_events do
-      error.claim!(assignee: ann, actor: bob)
-      error.unclaim!(actor: ann)
-    end
-
-    assert_equal [
-      ["error_claimed", {error: error, actor: bob, assignee: ann}],
-      ["error_unclaimed", {error: error, actor: ann, assignee: ann}]
-    ], events
+    assert_equal [["error_resolved", {error: error}]], events
   end
 
   test "updating a resolved error without changing its resolution publishes nothing" do

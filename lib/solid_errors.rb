@@ -22,10 +22,6 @@ module SolidErrors
   mattr_accessor :destroy_after
   mattr_accessor :ignored_errors, default: []
   mattr_writer :url_helper_name, :url_options
-  # Turn on claiming errors. current_actor gets the dashboard controller and returns the signed-in user as
-  # {id:, name:}; assignees returns everyone an error can be claimed for, as an array of the same.
-  mattr_accessor :current_actor
-  mattr_accessor :assignees
 
   class << self
     # use method instead of attr_accessor to ensure
@@ -68,28 +64,6 @@ module SolidErrors
       end
     end
 
-    # Whether the dashboard offers claiming: the app configured current_actor or assignees,
-    # and the errors database has the claim columns and events table
-    def claiming?
-      (current_actor || assignees).present? && claiming_migrated?
-    end
-
-    # Active Record caches table and column lookups, so this queries the schema once per process
-    def claiming_migrated?
-      SolidErrors::Event.table_exists? &&
-        (%w[claimed_by_id claimed_by_name] - SolidErrors::Error.column_names).empty?
-    end
-
-    # The signed-in user as {id:, name:} with a string id, or nil
-    def actor_for(controller)
-      normalize_actor(current_actor&.call(controller))
-    end
-
-    # Everyone an error can be claimed for, as {id:, name:} with string ids
-    def assignee_list
-      Array(assignees&.call).filter_map { |assignee| normalize_actor(assignee) }
-    end
-
     def send_emails?
       send_emails && email_to.present? && !ActiveSupport::IsolatedExecutionState[:solid_errors_without_emails]
     end
@@ -112,13 +86,6 @@ module SolidErrors
     end
 
     private
-
-    def normalize_actor(actor)
-      return if actor.blank?
-
-      actor = actor.to_h.symbolize_keys
-      {id: actor.fetch(:id).to_s, name: actor.fetch(:name).to_s}
-    end
 
     def find_solid_errors_route
       @solid_errors_route ||= Rails.application.routes.routes.find do |r|
