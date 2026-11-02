@@ -79,6 +79,9 @@ production:
 
 Then run `db:prepare` in production to ensure the database is created and the schema is loaded.
 
+> [!WARNING]
+> Use `db:prepare`, not `db:create` followed by `db:migrate`. Solid Errors ships a schema rather than migrations, so `db:migrate` leaves the errors database empty and then dumps that empty schema over `db/errors_schema.rb`. If that has happened, copy the schema back from [the install template](lib/generators/solid_errors/install/templates/db/errors_schema.rb) and run `db:prepare` again.
+
 Then mount the engine in your `config/routes.rb` file:
 ```ruby
 authenticate :user, -> (user) { user.admin? } do
@@ -151,19 +154,42 @@ Rails.error.handle(context: { user_id: user.id }, severity: :info) do
 end
 ```
 
+
+### What each occurrence records
+
+Every occurrence stores the backtrace and the error's context. Rails adds the current request or job to that context, and Solid Errors records which one it was: the controller action (`UsersController#show`), or the job's class, id and queue.
+
+Request params and job arguments are not recorded unless you opt in, because they often carry user content that `config.filter_parameters` can't catch: it matches keys, so positional job arguments, mail delivery jobs (the mail's recipients and body) and webhook payloads would be stored and emailed as they are.
+
+```ruby
+config.solid_errors.record_params = true    # the request's params, with filter_parameters applied
+config.solid_errors.record_arguments = true # the job's arguments, with filter_parameters applied
+```
+
+Context you set yourself takes precedence. For example, `Rails.error.set_context(params: ...)` in a `before_action` replaces the recorded params.
+
+Any Active Record object in the context is stored as its [GlobalID](https://github.com/rails/globalid) (`gid://my-app/User/1`), so you can tell which record was involved. Add your own context with `Rails.error.set_context(...)` or the `context:` option shown above.
+
+Errors raised in background jobs reach Solid Errors when your job backend runs jobs inside the Rails executor, as Solid Queue, Sidekiq and GoodJob do. You don't need any extra setup for this.
+
 ### Configuration
 
-You can configure Solid Errors via the Rails configuration object, under the `solid_errors` key. Currently, 6 configuration options are available:
+You can configure Solid Errors via the Rails configuration object, under the `solid_errors` key. Currently, the following configuration options are available:
 
+* `enabled` - Enable or disable error tracking. Defaults to `true`. See [Disabling error tracking](#disabling-error-tracking) for more information.
 * `connects_to` - The database configuration to use for the Solid Errors database. See [Database Configuration](#database-configuration) for more information.
 * `username` - The username to use for HTTP authentication. See [Authentication](#authentication) for more information.
 * `password` - The password to use for HTTP authentication. See [Authentication](#authentication) for more information.
 * `sends_email` - Whether or not to send emails when an error occurs. See [Email notifications](#email-notifications) for more information.
 * `email_from` - The email address to send a notification from. See [Email notifications](#email-notifications) for more information.
 * `email_to` - The email address(es) to send a notification to. See [Email notifications](#email-notifications) for more information.
+* `email_every_occurrence` - Whether to email every occurrence (the default), or only new errors and resolved errors that occur again. See [Email notifications](#email-notifications) for more information.
 * `email_subject_prefix` - Prefix added to the subject line for email notifications. See [Email notifications](#email-notifications) for more information.
+* `email_subject` - A proc that builds the subject line for email notifications. See [Email notifications](#email-notifications) for more information.
 * `base_controller_class` - Specify a different controller as the base class for the Solid Errors controller. See [Authentication](#authentication) for more information.
 * `destroy_after` - If set, Solid Errors will periodically destroy resolved records that are older than the value specified. See [Automatically destroying old records](#automatically-destroying-old-records) for more information.
+* `record_params` / `record_arguments` - Whether to record request params and job arguments with each occurrence. Both default to `false`. See [What each occurrence records](#what-each-occurrence-records).
+* `ignored_errors` - Error classes, or their names, to never record, in addition to the built-in list in `SolidErrors::Subscriber::IGNORED_ERRORS`. For example, `config.solid_errors.ignored_errors = ["ActiveStorage::FileNotFoundError"]`.
 
 ### Database Configuration
 
@@ -190,6 +216,46 @@ Running Solid Errors in a separate database is recommended, but it's also possib
 3. Migrate your database.
 
 You won't have multiple databases, so `database.yml` doesn't need to have the errors database configuration.
+
+#### Apps that use `schema_format = :sql`
+
+The installer writes `db/errors_schema.rb`, but an app with `config.active_record.schema_format = :sql` looks for `db/errors_structure.sql` for the errors database.
+
+On Rails 8.1 and later, keep the Ruby schema for the errors database only by setting `schema_format` on it in `config/database.yml`:
+
+```yaml
+production:
+  errors:
+    <<: *default
+    database: storage/production_errors.sqlite3
+    migrations_paths: db/errors_migrate
+    schema_format: ruby
+```
+
+On earlier Rails versions, create the errors database, load the Ruby schema into it, and dump it as SQL for your database adapter:
+
+```sh
+bin/rails db:create:errors
+bin/rails runner 'ActiveRecord::Tasks::DatabaseTasks.load_schema(ActiveRecord::Base.configurations.configs_for(env_name: Rails.env, name: "errors"), :ruby, "db/errors_schema.rb")'
+bin/rails db:schema:dump:errors
+```
+
+This writes `db/errors_structure.sql`, which you commit in place of `db/errors_schema.rb`.
+
+#### Disabling error tracking
+
+Solid Errors is enabled by default. If you want to disable error tracking in a specific environment, you can set `enabled` to `false`:
+
+```ruby
+# config/environments/development.rb
+config.solid_errors.enabled = false
+```
+
+When disabled, Solid Errors will not subscribe to the Rails error reporter and no errors will be recorded.
+
+Disable it in every environment that loads the gem but has no errors database, such as development or test. Otherwise Solid Errors records errors to the primary database, fails with `Could not find table 'solid_errors'`, and in development and test that failure can hide the error you were looking for.
+
+Configuration belongs in `config/environments/<environment>.rb`, not in `config/<environment>.rb`, which Rails does not load.
 
 #### Authentication
 
@@ -233,14 +299,14 @@ Solid Errors _can_ send email notifications whenever an error occurs, if your ap
 
 There are two ways to configure email notifications. First, you can use environment variables:
 
-```ruby
-ENV["SOLIDERRORS_SEND_EMAILS"] = true # defaults to false
-ENV["SOLIDERRORS_EMAIL_FROM"] = "errors@myapp.com" # defaults to "solid_errors@noreply.com"
-ENV["SOLIDERRORS_EMAIL_TO"] = "devs@myapp.com" # no default, must be set
-ENV["SOLIDERRORS_EMAIL_SUBJECT_PREFIX"] = "[Application name][Environment]" # no default, optional
+```sh
+SOLIDERRORS_SEND_EMAILS=true # defaults to false
+SOLIDERRORS_EMAIL_FROM=errors@myapp.com # defaults to solid_errors@noreply.com
+SOLIDERRORS_EMAIL_TO=devs@myapp.com # no default, must be set
+SOLIDERRORS_EMAIL_SUBJECT_PREFIX="[Application name][Environment]" # no default, optional
 ```
 
-Second, you can set the values via the configuration object:
+Second, you can set the values via the configuration object, which takes precedence over the environment variables:
 
 ```ruby
 # Set authentication credentials and optional subject prefix for Solid Errors
@@ -251,6 +317,57 @@ config.solid_errors.email_subject_prefix = "[#{Rails.application.name}][#{Rails.
 ```
 
 If you have set `send_emails` to `true` and have set an `email_to` address, Solid Errors will send an email notification whenever an error occurs. If you have not set `send_emails` to `true` or have not set an `email_to` address, Solid Errors will not send any email notifications.
+
+To be emailed only when an error is new, or when a resolved error occurs again, rather than for every occurrence:
+
+```ruby
+config.solid_errors.email_every_occurrence = false # defaults to true
+```
+
+The subject names the error, and says when a resolved error has occurred again (`🔥 TimeoutError (reopened)`). To build it yourself, set `email_subject` to a proc. It is called with the error, the occurrence, and `reason`: `:created` or `:reopened` when the occurrence opened its error, `nil` for any other. `email_subject_prefix` is still added in front of what it returns.
+
+```ruby
+config.solid_errors.email_subject = ->(error:, occurrence:, reason:) {
+  # Counting up to this occurrence, rather than all of them, gives the same answer however late the email is sent
+  count = error.occurrences.where(id: ..occurrence.id).count
+  subject = "#{error.severity_emoji} #{error.exception_class}"
+
+  case reason
+  when :reopened then "🔄 REOPENED: #{subject}"
+  when :resolved then "✅ RESOLVED: #{error.exception_class}"
+  else count.in?([10, 100, 1_000]) ? "#{subject} (#{count.ordinalize} occurrence)" : subject
+  end
+}
+```
+
+The error email can also be sent for events of your own, such as an error being resolved or occurring unusually often. Whatever reason you pass reaches `email_subject`, as `:resolved` does in the example above:
+
+```ruby
+# config/initializers/solid_errors.rb
+ActiveSupport::Notifications.subscribe("error_resolved.solid_errors") do |event|
+  occurrence = event.payload[:error].occurrences.last
+  SolidErrors::ErrorMailer.error_occurred(occurrence, :resolved).deliver_later if occurrence && SolidErrors.send_emails?
+end
+```
+
+#### Lifecycle events
+
+Solid Errors publishes [Active Support notifications](https://guides.rubyonrails.org/active_support_instrumentation.html) once each change is committed, so you can send errors to Slack, a webhook or anywhere else:
+
+| Event | When | Payload |
+| --- | --- | --- |
+| `error_created.solid_errors` | An error is recorded for the first time | `:error`, `:occurrence` |
+| `error_reopened.solid_errors` | A resolved error occurs again | `:error`, `:occurrence` |
+| `error_resolved.solid_errors` | An error is marked as resolved | `:error` |
+| `occurrence_created.solid_errors` | Any occurrence is recorded, including those above | `:error`, `:occurrence` |
+
+```ruby
+# config/initializers/solid_errors.rb
+ActiveSupport::Notifications.subscribe(/\Aerror_(created|reopened)\.solid_errors\z/) do |event|
+  error = event.payload[:error]
+  SlackNotifier.post("#{error.exception_class}: #{error.message}")
+end
+```
 
 #### Automatically destroying old records
 
@@ -264,6 +381,21 @@ config.solid_errors.destroy_after = 30.days
 ```ruby
 # Automatically destroy records older than 6 months
 config.solid_errors.destroy_after = 6.months
+```
+
+#### Checking the schema after an upgrade
+
+When a release changes the schema, [UPGRADE.md](UPGRADE.md) describes the migration. To have your test suite fail until you've applied it, assert that the errors database has everything the installed version uses:
+
+```ruby
+# test/solid_errors_test.rb
+require "test_helper"
+
+class SolidErrorsTest < ActiveSupport::TestCase
+  test "the errors database is up to date" do
+    assert SolidErrors.migrated?
+  end
+end
 ```
 
 ### Examples
@@ -304,11 +436,19 @@ app/views/
     │   ├── error_occurred.html.erb
     │   └── error_occurred.text.erb
     ├── errors
+    │   ├── markdown
+    │   │   ├── _footer.text.erb
+    │   │   ├── _header.text.erb
+    │   │   ├── _occurrence.text.erb
+    │   │   ├── _preamble.text.erb
+    │   │   └── _source_context.text.erb
     │   ├── _actions.html.erb
+    │   ├── _copy_markdown_button.html.erb
     │   ├── _error.html.erb
     │   ├── _row.html.erb
     │   ├── index.html.erb
-    │   └── show.html.erb
+    │   ├── show.html.erb
+    │   └── show.text.erb
     └── occurrences
         ├── _collection.html.erb
         └── _occurrence.html.erb
@@ -348,6 +488,26 @@ You can always take control of the views by creating your own views and/or parti
 </html>
 ```
 
+#### Customizing the copied Markdown
+
+The "Copy Markdown" button on the error page copies the newest occurrence, and its menu copies the last 5, 10 or 25. The same Markdown is served at `/errors/:id.md?limit=5` (up to 25 occurrences) and returned by `error.to_markdown(limit: 5)`. It prints the error once, then each occurrence, then the source of each application frame once.
+
+It is rendered from `app/views/solid_errors/errors/show.text.erb` and the partials in `app/views/solid_errors/errors/markdown/`, so you can override any of them. The `_preamble` and `_footer` partials are empty, ready for instructions you want pasted with every error, such as a prompt for an LLM:
+
+```erb
+<%# app/views/solid_errors/errors/markdown/_preamble.text.erb %>
+<%# locals: (error:, occurrences:) -%>
+Investigate and fix the root cause of this error from our app. Add a test covering the failure.
+
+```
+
+The templates use the `text` format so that ERB does not HTML-escape exception messages and backtraces.
+
+
+### Locales
+
+The dashboard is written in English and renders in English whenever your app allows the `:en` locale. If `config.i18n.available_locales` leaves out `:en`, the dashboard renders in your app's locale instead, and you will need to provide the `datetime.distance_in_words.short` translations from [`config/locales/en.yml`](config/locales/en.yml) in that locale.
+
 ## Sponsors
 
 <p align="center">
@@ -376,4 +536,3 @@ The gem is available as open source under the terms of the [MIT License](https:/
 ## Code of Conduct
 
 Everyone interacting in the SolidErrors project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/fractaledmind/solid_errors/blob/main/CODE_OF_CONDUCT.md).
-

@@ -1,6 +1,6 @@
 <%# locals: (error:) -%>
 <tr class="even:bg-gray-50 align-top">
-  <td scope="col" class="whitespace-wrap py-4 pl-4 pr-3 font-medium text-gray-900 sm:pl-3">
+  <td scope="col" class="py-4 pl-4 pr-3 font-medium text-gray-900 sm:pl-3 wrap-anywhere">
     <div>
       <%= error.severity_emoji %>
       <%= link_to error_path(error), class: "text-blue-400 underline inline-flex items-baseline gap-1" do %>
@@ -9,7 +9,7 @@
       from
       <em><code><%= error.source %></code></em>
     </div>
-    <pre class="whitespace-pre-wrap ml-6 mt-4"><%= error.message %></pre>
+    <pre class="whitespace-pre-wrap wrap-anywhere ml-6 mt-4"><%= error.message %></pre>
   </td>
   <td scope="col" class="whitespace-nowrap px-3 py-4 pt-7 text-gray-500 text-right">
     <%= error.occurrences_count %>

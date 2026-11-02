@@ -1,8 +1,8 @@
 <%# locals: (error:, show_actions: true) -%>
 
 <%= tag.section id: dom_id(error), class: "space-y-6" do %>
-  <div class="flex justify-between items-center">
-    <%= tag.h1 class: "font-bold flex items-center text-2xl gap-2" do %>
+  <div class="flex justify-between items-center gap-2">
+    <%= tag.h1 class: "font-bold flex flex-wrap items-center text-2xl gap-2 min-w-0 wrap-anywhere" do %>
       <%= error.severity_emoji %>
       <code><%= error.exception_class %></code>
       from
@@ -14,7 +14,7 @@
     </small>
   </div>
 
-  <pre class="whitespace-pre-wrap"><%= error.message %></pre>
+  <pre class="whitespace-pre-wrap wrap-anywhere"><%= error.message %></pre>
 
   <dl class="flex-1 grid grid-cols-2 gap-x-4">
     <div class="flex items-center justify-between flex-wrap gap-x-2">
@@ -67,7 +67,7 @@
       <dt class="font-bold">
         <%= SolidErrors::Error.human_attribute_name(:exception_class) %>
       </dt>
-      <dd class="inline-flex items-center gap-1">
+      <dd class="inline-flex items-center gap-1 min-w-0 wrap-anywhere">
         <code><%= error.exception_class %></code>
       </dd>
     </div>
@@ -75,7 +75,7 @@
       <dt class="font-bold">
         <%= SolidErrors::Error.human_attribute_name(:source) %>
       </dt>
-      <dd class="inline-flex items-center gap-1">
+      <dd class="inline-flex items-center gap-1 min-w-0 wrap-anywhere">
         <em><%= error.source %></em>
       </dd>
     </div>
@@ -83,7 +83,7 @@
       <dt class="font-bold">
         <%= SolidErrors::Error.human_attribute_name(:project_root) %>
       </dt>
-      <dd class="">
+      <dd class="min-w-0 wrap-anywhere">
         <span><%= SolidErrors::BacktraceLine::RAILS_ROOT %></span>
       </dd>
     </div>
@@ -91,7 +91,7 @@
       <dt class="font-bold">
         <%= SolidErrors::Error.human_attribute_name(:gem_root) %>
       </dt>
-      <dd class="">
+      <dd class="min-w-0 wrap-anywhere">
         <ul>
           <% Gem.path.each do |path| %>
             <li><%= path %></li>

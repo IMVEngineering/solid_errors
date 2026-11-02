@@ -30,6 +30,8 @@ module SolidErrors
     scope :resolved, -> { where.not(resolved_at: nil) }
     scope :unresolved, -> { where(resolved_at: nil) }
 
+    after_update_commit :publish_resolved, if: -> { saved_change_to_resolved_at? && resolved? }
+
     def severity_emoji
       SEVERITY_TO_EMOJI[severity.to_sym]
     end
@@ -52,6 +54,31 @@ module SolidErrors
 
     def resolved?
       resolved_at.present?
+    end
+
+    MARKDOWN_OCCURRENCE_LIMIT = 25
+
+    # Renders the error and its most recent occurrences from the
+    # solid_errors/errors/markdown templates, which host apps can override.
+    # Rendered as `text` rather than `md` so ActionView's ERB handler skips
+    # HTML escaping (its escape_ignore_list covers text/plain).
+    def to_markdown(limit: 1)
+      # A limit from request params may be an array or hash, such as ?limit[]=5; treat it as the default
+      limit = (limit.respond_to?(:to_i) ? limit.to_i : 1).clamp(1, MARKDOWN_OCCURRENCE_LIMIT)
+      occurrences = self.occurrences.order(created_at: :desc).limit(limit).to_a
+
+      SolidErrors::ErrorsController.render(
+        template: "solid_errors/errors/show",
+        formats: [:text],
+        layout: false,
+        locals: {error: self, occurrences: occurrences}
+      )
+    end
+
+    private
+
+    def publish_resolved
+      ActiveSupport::Notifications.instrument("error_resolved.solid_errors", error: self)
     end
   end
 end

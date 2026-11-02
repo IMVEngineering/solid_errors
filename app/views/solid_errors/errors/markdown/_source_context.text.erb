@@ -1,0 +1,15 @@
+<%# locals: (occurrences:) -%>
+<%- lines = occurrences.flat_map { |occurrence| occurrence.parsed_backtrace.application_lines }.uniq(&:to_s) -%>
+<%- if lines.any? -%>
+
+### Source Context
+<%- lines.each do |line| -%>
+#### <%= line %>
+```ruby
+<%- line.source.each do |number, code| -%>
+<%= number %>: <%= code.chomp %>
+<%- end -%>
+```
+
+<%- end -%>
+<%- end -%>

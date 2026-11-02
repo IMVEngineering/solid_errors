@@ -1,0 +1,15 @@
+<%# locals: (occurrence:, position:, total:) -%>
+
+## Occurrence<%= " #{position} of #{total}" if total > 1 %>: <%= occurrence.created_at.utc.iso8601 %>
+
+### Backtrace
+<%- occurrence.parsed_backtrace.lines.each do |line| -%>
+<%= line.filtered_method ? line.to_s : line.unparsed_line %>
+<%- end -%>
+<%- if occurrence.context.present? -%>
+
+### Request Context
+<%- occurrence.context.each do |key, value| -%>
+- <%= key %>: <%= value %>
+<%- end -%>
+<%- end -%>
