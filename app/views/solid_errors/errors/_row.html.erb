@@ -24,7 +24,7 @@
     <% if error.resolved? %>
       <%= render 'solid_errors/errors/delete_button', error: error %>
     <% else %>
-      <%= render 'solid_errors/errors/resolve_button', error: error %>
+      <%= render 'solid_errors/errors/resolve_button', error: error, remove_row: true %>
     <% end %>
   </td>
 </tr>

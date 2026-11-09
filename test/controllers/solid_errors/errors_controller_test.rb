@@ -32,6 +32,34 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "resolving from the list renders a form that removes its row" do
+    get solid_errors.errors_path
+
+    assert_select "tbody tr form[data-remove-row]", count: SolidErrors::Error.unresolved.count
+  end
+
+  test "resolving from the show page keeps the normal redirect form" do
+    get solid_errors.error_path(@error)
+
+    assert_select "form[data-remove-row]", count: 0
+  end
+
+  test "resolving over XHR responds with no content instead of redirecting" do
+    patch solid_errors.error_path(@error),
+      params: {error: {resolved_at: Time.now}},
+      headers: {"X-Requested-With" => "XMLHttpRequest"}
+
+    assert_response :no_content
+    assert @error.reload.resolved?
+  end
+
+  test "resolving a regular request still redirects to the list" do
+    patch solid_errors.error_path(@error), params: {error: {resolved_at: Time.now}}
+
+    assert_redirected_to solid_errors.errors_path
+    assert @error.reload.resolved?
+  end
+
   test "occurrence pagination links use the default page size without an items param" do
     report_errors(19)
     get solid_errors.error_path(@error)
