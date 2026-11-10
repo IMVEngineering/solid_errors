@@ -22,6 +22,7 @@ module SolidErrors
 
     # GET /errors/1
     # GET /errors/1.md?limit=5
+    # GET /errors/1.md?occurrence_id=7
     def show
       respond_to do |format|
         format.html do
@@ -30,7 +31,7 @@ module SolidErrors
         end
         format.md do
           # Served as text/plain so browsers display it inline instead of downloading it
-          render plain: @error.to_markdown(limit: params[:limit]), content_type: "text/plain"
+          render plain: @error.to_markdown(limit: params[:limit], occurrence_id: params[:occurrence_id]), content_type: "text/plain"
         end
       end
     end
