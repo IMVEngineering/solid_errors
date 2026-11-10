@@ -39,6 +39,9 @@ module SolidErrors
     # PATCH/PUT /errors/1
     def update
       @error.update!(error_params)
+      # Rows resolve in place via fetch (see the layout); everyone else gets the redirect
+      return head :no_content if request.xhr?
+
       redirect_to errors_path, notice: "Error marked as resolved."
     end
 
