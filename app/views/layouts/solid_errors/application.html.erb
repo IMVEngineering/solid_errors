@@ -127,7 +127,6 @@
         var main = document.querySelector('[data-copy-markdown-main]');
         if (!main) return;
         var label = main.querySelector('span');
-        var originalText = label.textContent;
 
         function fetchText(url) {
           return fetch(url, { credentials: 'same-origin' }).then(function(response) {
@@ -157,9 +156,12 @@
             var menu = link.closest('details');
             if (menu) menu.removeAttribute('open');
 
+            // Menu links report on the main button; a button with its own label reports itself
+            var target = link.querySelector('span') || label;
+            var targetText = target.textContent;
             copy(link.href).then(function() {
-              label.textContent = 'Copied!';
-              setTimeout(function() { label.textContent = originalText; }, 2000);
+              target.textContent = 'Copied!';
+              setTimeout(function() { target.textContent = targetText; }, 2000);
             }, function() {
               window.location.href = link.href;
             });

@@ -6,6 +6,32 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     @error = SolidErrors::Error.last
   end
 
+  test "each occurrence has a copy link to its own markdown" do
+    get solid_errors.error_path(@error)
+
+    @error.occurrences.each do |occurrence|
+      href = solid_errors.error_path(@error, format: :md, occurrence_id: occurrence.id)
+      assert_select "section#occurrence_#{occurrence.id} summary a[data-copy-markdown][href=?]", href
+    end
+  end
+
+  test "markdown for one occurrence includes only that occurrence" do
+    occurrence = @error.occurrences.order(:created_at).first
+    get solid_errors.error_path(@error, format: :md, occurrence_id: occurrence.id)
+
+    assert_response :success
+    assert_equal 1, response.body.scan("## Occurrence").size
+    assert_includes response.body, occurrence.created_at.utc.iso8601
+  end
+
+  test "markdown for another error's occurrence is not found" do
+    other = SolidErrors::Occurrence.where.not(error_id: @error.id).first
+    skip "needs a second error" unless other
+
+    get solid_errors.error_path(@error, format: :md, occurrence_id: other.id)
+    assert_response :not_found
+  end
+
   test "occurrence pagination links use the default page size without an items param" do
     report_errors(19)
     get solid_errors.error_path(@error)

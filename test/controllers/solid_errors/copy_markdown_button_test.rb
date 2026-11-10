@@ -56,10 +56,10 @@ class SolidErrors::CopyMarkdownButtonTest < ActionDispatch::IntegrationTest
   end
 
   def copy_labels
-    css_select("a[data-copy-markdown]").map { |link| link.text.strip }
+    css_select(".copy-markdown-split a[data-copy-markdown]").map { |link| link.text.strip }
   end
 
   def copy_link(label)
-    css_select("a[data-copy-markdown]").find { |link| link.text.strip == label }
+    css_select(".copy-markdown-split a[data-copy-markdown]").find { |link| link.text.strip == label }
   end
 end
