@@ -11,6 +11,7 @@ module SolidErrors
       errors_table = Error.arel_table
       occurrences_table = Occurrence.arel_table
       query_scope = error_scope.resolved? ? Error.resolved : Error.unresolved
+      @page = Page.new(query_scope.where(id: Occurrence.select(:error_id)), params, default_items: 25)
       @errors = query_scope
         .joins(:occurrences)
         .select(errors_table[Arel.star],
@@ -18,6 +19,8 @@ module SolidErrors
           occurrences_table[:id].count.as("occurrences_count"))
         .group(errors_table[:id])
         .order(recent_occurrence: :desc)
+        .offset(@page.offset)
+        .limit(@page.items)
     end
 
     # GET /errors/1

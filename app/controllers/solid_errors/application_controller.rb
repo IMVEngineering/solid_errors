@@ -5,16 +5,19 @@ module SolidErrors
 
     http_basic_authenticate_with name: SolidErrors.username, password: SolidErrors.password if SolidErrors.password
 
+    # Query params the pager carries from page to page. Add a filter's param here to keep it while paging.
+    PAGER_PARAMS = %w[scope items].freeze
+
     # adapted from: https://github.com/ddnexus/pagy/blob/master/gem/lib/pagy.rb
     OverflowError = Class.new(StandardError)
     class Page
       attr_reader :count, :items, :pages, :first, :last, :prev, :next, :offset, :from, :to
 
-      def initialize(collection, params)
+      def initialize(collection, params, default_items: 20)
         @count = collection.count
-        @items = (params[:items] || 20).to_i
+        @items = [(params[:items] || default_items).to_i, 1].max
         @pages = [(@count.to_f / @items).ceil, 1].max
-        @page = ((page = (params[:page] || 1).to_i) > @pages) ? @pages : page
+        @page = (params[:page] || 1).to_i.clamp(1, @pages)
         @first = (1 unless @page == 1)
         @last = (@pages unless @page == @pages)
         @prev = (@page - 1 unless @page == 1)
