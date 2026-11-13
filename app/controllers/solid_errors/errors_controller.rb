@@ -96,7 +96,7 @@ module SolidErrors
     end
 
     def source_options
-      Error.distinct.order(:source).pluck(:source)
+      Error.where.not(source: [nil, ""]).distinct.order(:source).pluck(:source)
     end
 
     def error_scope
