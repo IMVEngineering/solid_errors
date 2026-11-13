@@ -48,9 +48,24 @@
     <% end %>
   </p>
 <% else %>
+<%= form_with url: (error_scope.resolved? ? destroy_many_errors_path : resolve_errors_path), method: (error_scope.resolved? ? :delete : :patch), id: "bulk-form", data: {bulk_form: true, confirm_template: (error_scope.resolved? ? "Delete %count% and their occurrences?" : nil)}.compact, class: "flex items-center gap-3 py-2" do %>
+  <% {scope: (error_scope.resolved? ? "resolved" : "unresolved"), page: params[:page], items: params[:items]}.merge(filter_params.symbolize_keys).each do |name, value| %>
+    <% next unless value.is_a?(String) && value.present? %>
+    <%= hidden_field_tag name, value, id: nil %>
+  <% end %>
+  <% if error_scope.resolved? %>
+    <%= button_tag "Delete selected", type: "submit", class: "cursor-pointer border border-red-500 text-red-500 bg-transparent rounded-md px-3 py-2 text-sm font-medium" %>
+  <% else %>
+    <%= button_tag "Resolve selected", type: "submit", class: "cursor-pointer border border-blue-500 text-blue-500 bg-transparent rounded-md px-3 py-2 text-sm font-medium" %>
+  <% end %>
+<% end %>
+
 <table class="min-w-full divide-y divide-gray-300">
   <thead>
     <tr>
+      <th scope="col" class="py-3.5 pl-4 pr-0 text-left sm:pl-3">
+        <input type="checkbox" data-select-all aria-label="Select all errors on this page">
+      </th>
       <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Error</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Count</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Last</th>
