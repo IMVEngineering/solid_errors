@@ -402,7 +402,7 @@ end
 
 There are only two screens in the dashboard.
 
-* the index view of all unresolved errors:
+* the index view of all unresolved errors, which you can search by exception class, message or source, filter by severity and source, and sort by last seen, first seen or occurrence count:
 
 ![image description](images/index-screenshot.png)
 

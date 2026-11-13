@@ -30,6 +30,15 @@ module SolidErrors
     scope :resolved, -> { where.not(resolved_at: nil) }
     scope :unresolved, -> { where(resolved_at: nil) }
 
+    # Case-insensitive substring match on the exception class, message or source.
+    # LIKE wildcards in the query are matched literally.
+    def self.search(query)
+      return all if query.blank?
+
+      pattern = "%#{sanitize_sql_like(query.to_s.strip)}%"
+      where(%i[exception_class message source].map { |column| arel_table[column].matches(pattern, "\\") }.reduce(:or))
+    end
+
     after_update_commit :publish_resolved, if: -> { saved_change_to_resolved_at? && resolved? }
 
     def severity_emoji
