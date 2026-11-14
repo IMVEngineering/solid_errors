@@ -394,6 +394,114 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "index renders row checkboxes tied to the bulk resolve form" do
+    get solid_errors.errors_path
+
+    assert_select "form#bulk-form[action=?]", solid_errors.resolve_errors_path do
+      assert_select "input[name=_method][value=patch]"
+      assert_select "button", text: "Resolve selected"
+    end
+    assert_select "tbody input[type=checkbox][form=bulk-form][name='ids[]']", count: SolidErrors::Error.unresolved.count
+    assert_select "thead input[type=checkbox][data-select-all][aria-label]"
+    assert_select "button", text: "Delete selected", count: 0
+  end
+
+  test "resolved tab renders the bulk delete form" do
+    make_error("OldError", "gone", resolved: true)
+    get solid_errors.errors_path(scope: :resolved)
+
+    assert_select "form#bulk-form[action=?]", solid_errors.destroy_many_errors_path do
+      assert_select "input[name=_method][value=delete]"
+      assert_select "button", text: "Delete selected"
+    end
+    assert_select "tbody input[type=checkbox][form=bulk-form][name='ids[]']", count: 1
+    assert_select "button", text: "Resolve selected", count: 0
+  end
+
+  test "bulk form carries only the set filter params" do
+    make_error("Zork", "zork")
+    get solid_errors.errors_path(q: "Zork", severity: "error", sort: "occurrences", page: "1", items: "10")
+
+    assert_select "form#bulk-form" do
+      assert_select "input[type=hidden][name=scope][value=unresolved]"
+      assert_select "input[type=hidden][name=q][value=Zork]"
+      assert_select "input[type=hidden][name=severity][value=error]"
+      assert_select "input[type=hidden][name=sort][value=occurrences]"
+      assert_select "input[type=hidden][name=page][value='1']"
+      assert_select "input[type=hidden][name=items][value='10']"
+      assert_select "input[type=hidden][name=source]", count: 0
+    end
+  end
+
+  test "bulk resolve resolves only the selected errors" do
+    a = make_error("A", "a")
+    b = make_error("B", "b")
+    c = make_error("C", "c")
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id, b.id]}
+
+    assert a.reload.resolved?
+    assert b.reload.resolved?
+    assert_not c.reload.resolved?
+    assert_equal "Resolved 2 errors.", flash[:notice]
+  end
+
+  test "bulk resolve notifies once per error" do
+    a = make_error("A", "a")
+    b = make_error("B", "b")
+    ids = []
+    subscriber = ActiveSupport::Notifications.subscribe("error_resolved.solid_errors") { |*args| ids << args.last[:error].id }
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id, b.id]}
+
+    assert_equal [a.id, b.id].sort, ids.sort
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  test "bulk resolve pluralizes and redirects back with the list state" do
+    a = make_error("A", "a")
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id], scope: "unresolved", q: "A", severity: "error", source: "test", sort: "occurrences", page: "2", items: "5", evil: "x"}
+
+    assert_equal "Resolved 1 error.", flash[:notice]
+    assert_redirected_to solid_errors.errors_path(scope: "unresolved", q: "A", severity: "error", source: "test", sort: "occurrences", page: "2", items: "5")
+  end
+
+  test "bulk resolve without a selection redirects with an alert" do
+    patch solid_errors.resolve_errors_path, params: {q: "x"}
+
+    assert_redirected_to solid_errors.errors_path(q: "x")
+    assert_equal "No errors selected.", flash[:alert]
+  end
+
+  test "bulk delete removes only resolved selected errors and their occurrences" do
+    resolved = make_error("R", "r", resolved: true, occurrences: [Time.current, 1.hour.ago])
+    unresolved = make_error("U", "u")
+    untouched = make_error("V", "v", resolved: true)
+
+    delete solid_errors.destroy_many_errors_path, params: {ids: [resolved.id, unresolved.id], scope: "resolved"}
+
+    assert_not SolidErrors::Error.exists?(resolved.id)
+    assert_equal 0, SolidErrors::Occurrence.where(error_id: resolved.id).count
+    assert SolidErrors::Error.exists?(unresolved.id)
+    assert SolidErrors::Error.exists?(untouched.id)
+    assert_equal "Deleted 1 error.", flash[:notice]
+    assert_redirected_to solid_errors.errors_path(scope: "resolved")
+  end
+
+  test "bulk delete without a selection redirects with an alert" do
+    delete solid_errors.destroy_many_errors_path, params: {scope: "resolved"}
+
+    assert_redirected_to solid_errors.errors_path(scope: "resolved")
+    assert_equal "No errors selected.", flash[:alert]
+  end
+
+  test "bulk routes do not collide with show" do
+    get "/resolve"
+    assert_response :not_found
+  end
+
   def make_error(exception_class, message, severity: "error", source: "test", resolved: false, created_at: Time.current, occurrences: [Time.current])
     error = SolidErrors::Error.create!(
       exception_class: exception_class, message: message, severity: severity, source: source,

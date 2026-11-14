@@ -60,7 +60,48 @@ module SolidErrors
       end
     end
 
+    # PATCH /resolve
+    def resolve
+      return redirect_back_to_list(alert: "No errors selected.") if selected_ids.empty?
+
+      resolved = 0
+      Error.transaction do
+        # One update per error so each fires error_resolved.solid_errors
+        Error.unresolved.where(id: selected_ids).find_each do |error|
+          error.update!(resolved_at: Time.current)
+          resolved += 1
+        end
+      end
+      redirect_back_to_list(notice: "Resolved #{helpers.pluralize(resolved, "error")}.")
+    end
+
+    # DELETE /destroy_many
+    def destroy_many
+      return redirect_back_to_list(alert: "No errors selected.") if selected_ids.empty?
+
+      deleted = 0
+      Error.transaction do
+        # Unresolved errors are left alone, as in #destroy
+        Error.resolved.where(id: selected_ids).find_each do |error|
+          error.destroy!
+          deleted += 1
+        end
+      end
+      redirect_back_to_list(notice: "Deleted #{helpers.pluralize(deleted, "error")}.")
+    end
+
     private
+
+    def selected_ids
+      ids = params[:ids]
+      ids.is_a?(Array) ? ids.select { |id| id.is_a?(String) && id.present? } : []
+    end
+
+    # Back to the list the bulk form came from, with the same tab, filters, sort and page
+    def redirect_back_to_list(flash)
+      list_params = params.to_unsafe_h.slice(*PAGER_PARAMS, "page").select { |_, value| value.is_a?(String) && value.present? }
+      redirect_to errors_path(list_params), flash
+    end
 
     # Only allow a list of trusted parameters through.
     def error_params

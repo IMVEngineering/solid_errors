@@ -1,5 +1,8 @@
 <%# locals: (error:) -%>
 <tr class="even:bg-gray-50 align-top">
+  <td class="py-4 pl-4 pr-0 pt-5 sm:pl-3">
+    <%= check_box_tag "ids[]", error.id, false, id: "select_error_#{error.id}", form: "bulk-form", data: {select_row: true}, "aria-label": "Select error ##{error.id}" %>
+  </td>
   <td scope="col" class="py-4 pl-4 pr-3 font-medium text-gray-900 sm:pl-3 wrap-anywhere">
     <div>
       <%= error.severity_emoji %>

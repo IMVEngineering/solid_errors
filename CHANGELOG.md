@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Select errors in the list to resolve them, or delete resolved ones, in one go, keeping the tab, filters and page
 - Search the errors list by exception class, message or source, filter it by severity and source, and sort it by last seen, first seen or occurrence count
 - Paginate the errors list, 25 per page, and keep the other query params when paging
 - Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
