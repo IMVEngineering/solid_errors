@@ -20,6 +20,12 @@
   </nav>
 </div>
 
+<% if @page.pages > 1 %>
+  <div class="flex justify-end">
+    <%= render "solid_errors/pager", page: @page, noun: "errors" %>
+  </div>
+<% end %>
+
 <table class="min-w-full divide-y divide-gray-300">
   <thead>
     <tr>

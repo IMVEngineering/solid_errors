@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Paginate the errors list, 25 per page, and keep the other query params when paging
 - Wrap long error messages and context values, and scroll wide source code sideways, so they no longer widen the dashboard
 - Copy the last 5, 10 or 25 occurrences from the "Copy Markdown" menu, serve the Markdown at `/errors/:id.md`, and render it from views that apps can override
 

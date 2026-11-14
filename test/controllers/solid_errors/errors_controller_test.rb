@@ -90,6 +90,64 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [solid_errors.error_path(@error, items: 1, page: 2)] * 2, pagination_hrefs
   end
 
+  test "the errors list shows 25 errors per page" do
+    create_errors(30)
+    get solid_errors.errors_path
+
+    assert_response :success
+    assert_select "tbody tr", count: 25
+    assert_select "strong", text: "1-25"
+    assert_equal [solid_errors.errors_path(page: 2)] * 1, pagination_hrefs.uniq
+  end
+
+  test "the second page lists the remaining errors" do
+    create_errors(30)
+    get solid_errors.errors_path(page: 2)
+
+    assert_select "tbody tr", count: 6
+    assert_select "strong", text: "26-31"
+  end
+
+  test "the errors list honors the items param" do
+    create_errors(10)
+    get solid_errors.errors_path(items: 5, page: 2)
+
+    assert_select "tbody tr", count: 5
+    assert_includes pagination_hrefs, solid_errors.errors_path(items: 5, page: 1)
+  end
+
+  test "a page past the end shows the last page" do
+    create_errors(30)
+    get solid_errors.errors_path(page: 99)
+
+    assert_response :success
+    assert_select "tbody tr", count: 6
+  end
+
+  test "a non-positive page or items param does not break the list" do
+    get solid_errors.errors_path(page: -3, items: 0)
+
+    assert_response :success
+  end
+
+  test "the pager keeps the scope and the tabs reset to the first page" do
+    create_errors(30, resolved: true)
+    get solid_errors.errors_path(scope: :resolved, page: 2)
+
+    assert_select "tbody tr", count: 5
+    assert_includes pagination_hrefs, solid_errors.errors_path(scope: :resolved, page: 1)
+    assert_select "nav[aria-label=Tabs] a[href=?]", solid_errors.errors_path(scope: :unresolved)
+    assert_select "nav[aria-label=Tabs] a[href=?]", solid_errors.errors_path(scope: :resolved)
+  end
+
+  test "the errors list counts only errors that have occurrences" do
+    create_errors(3)
+    SolidErrors::Error.create!(exception_class: "Orphan", message: "none", severity: "error", source: "x", fingerprint: "orphan")
+    get solid_errors.errors_path
+
+    assert_select "tbody tr", count: 4 # 3 plus the one from setup
+  end
+
   test "inline styles and scripts carry the content security policy nonce" do
     get solid_errors.error_path(@error)
 
@@ -189,6 +247,16 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
       raise StandardError, "oof"
     rescue => error
       Rails.error.report(error)
+    end
+  end
+
+  def create_errors(count, resolved: false)
+    count.times do |i|
+      error = SolidErrors::Error.create!(
+        exception_class: "Err#{i}", message: "msg #{i}", severity: "error", source: "test", fingerprint: "fp#{i}",
+        resolved_at: (Time.current if resolved)
+      )
+      error.occurrences.create!(created_at: i.minutes.ago)
     end
   end
 
