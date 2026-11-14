@@ -6,7 +6,7 @@ module SolidErrors
     http_basic_authenticate_with name: SolidErrors.username, password: SolidErrors.password if SolidErrors.password
 
     # Query params the pager carries from page to page. Add a filter's param here to keep it while paging.
-    PAGER_PARAMS = %w[scope items].freeze
+    PAGER_PARAMS = %w[scope items q severity source sort].freeze
 
     # adapted from: https://github.com/ddnexus/pagy/blob/master/gem/lib/pagy.rb
     OverflowError = Class.new(StandardError)
