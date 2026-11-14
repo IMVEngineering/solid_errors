@@ -196,6 +196,37 @@
           form.submit();
         });
       });
+
+      // Bulk actions: the header checkbox toggles the rows on this page, and deleting asks first.
+      (function() {
+        var bulkForm = document.querySelector('form[data-bulk-form]');
+        if (!bulkForm) return;
+        var selectAll = document.querySelector('input[data-select-all]');
+        var rows = Array.prototype.slice.call(document.querySelectorAll('input[data-select-row]'));
+
+        function syncSelectAll() {
+          if (!selectAll) return;
+          var checked = rows.filter(function(box) { return box.checked; }).length;
+          selectAll.checked = rows.length > 0 && checked === rows.length;
+          selectAll.indeterminate = checked > 0 && checked < rows.length;
+        }
+
+        if (selectAll) {
+          selectAll.addEventListener('change', function() {
+            rows.forEach(function(box) { box.checked = selectAll.checked; });
+            syncSelectAll();
+          });
+        }
+        rows.forEach(function(box) { box.addEventListener('change', syncSelectAll); });
+
+        bulkForm.addEventListener('submit', function(event) {
+          var template = bulkForm.getAttribute('data-confirm-template');
+          if (!template) return;
+          var count = rows.filter(function(box) { return box.checked; }).length;
+          if (count === 0) return;
+          if (!window.confirm(template.replace('%count%', count + (count === 1 ? ' error' : ' errors')))) event.preventDefault();
+        });
+      })();
     </script>
   </body>
 </html>

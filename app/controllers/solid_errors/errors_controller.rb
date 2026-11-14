@@ -4,13 +4,15 @@ module SolidErrors
 
     before_action :set_error, only: %i[show update destroy]
 
-    helper_method :error_scope
+    helper_method :error_scope, :filter_params, :severity_options, :source_options
 
     # GET /errors
     def index
       errors_table = Error.arel_table
       occurrences_table = Occurrence.arel_table
-      query_scope = error_scope.resolved? ? Error.resolved : Error.unresolved
+      query_scope = (error_scope.resolved? ? Error.resolved : Error.unresolved)
+        .search(filter_params["q"])
+        .where(filter_params.slice("severity", "source"))
       @page = Page.new(query_scope.where(id: Occurrence.select(:error_id)), params, default_items: 25)
       @errors = query_scope
         .joins(:occurrences)
@@ -18,7 +20,7 @@ module SolidErrors
           occurrences_table[:created_at].maximum.as("recent_occurrence"),
           occurrences_table[:id].count.as("occurrences_count"))
         .group(errors_table[:id])
-        .order(recent_occurrence: :desc)
+        .order(sort_order, errors_table[:id].desc)
         .offset(@page.offset)
         .limit(@page.items)
     end
@@ -58,7 +60,48 @@ module SolidErrors
       end
     end
 
+    # PATCH /resolve
+    def resolve
+      return redirect_back_to_list(alert: "No errors selected.") if selected_ids.empty?
+
+      resolved = 0
+      Error.transaction do
+        # One update per error so each fires error_resolved.solid_errors
+        Error.unresolved.where(id: selected_ids).find_each do |error|
+          error.update!(resolved_at: Time.current)
+          resolved += 1
+        end
+      end
+      redirect_back_to_list(notice: "Resolved #{helpers.pluralize(resolved, "error")}.")
+    end
+
+    # DELETE /destroy_many
+    def destroy_many
+      return redirect_back_to_list(alert: "No errors selected.") if selected_ids.empty?
+
+      deleted = 0
+      Error.transaction do
+        # Unresolved errors are left alone, as in #destroy
+        Error.resolved.where(id: selected_ids).find_each do |error|
+          error.destroy!
+          deleted += 1
+        end
+      end
+      redirect_back_to_list(notice: "Deleted #{helpers.pluralize(deleted, "error")}.")
+    end
+
     private
+
+    def selected_ids
+      ids = params[:ids]
+      ids.is_a?(Array) ? ids.select { |id| id.is_a?(String) && id.present? } : []
+    end
+
+    # Back to the list the bulk form came from, with the same tab, filters, sort and page
+    def redirect_back_to_list(flash)
+      list_params = params.to_unsafe_h.slice(*PAGER_PARAMS, "page").select { |_, value| value.is_a?(String) && value.present? }
+      redirect_to errors_path(list_params), flash
+    end
 
     # Only allow a list of trusted parameters through.
     def error_params
@@ -74,6 +117,27 @@ module SolidErrors
       return action.call unless I18n.locale_available?(:en)
 
       I18n.with_locale(:en, &action)
+    end
+
+    # The search, filter and sort params that are set. Non-string values are ignored.
+    def filter_params
+      @filter_params ||= params.to_unsafe_h.slice("q", "severity", "source", "sort").select { |_, value| value.is_a?(String) && value.present? }
+    end
+
+    def sort_order
+      case filter_params["sort"]
+      when "first_seen" then Error.arel_table[:created_at].desc
+      when "occurrences" then Occurrence.arel_table[:id].count.desc
+      else Occurrence.arel_table[:created_at].maximum.desc
+      end
+    end
+
+    def severity_options
+      Error.distinct.order(:severity).pluck(:severity)
+    end
+
+    def source_options
+      Error.where.not(source: [nil, ""]).distinct.order(:source).pluck(:source)
     end
 
     def error_scope

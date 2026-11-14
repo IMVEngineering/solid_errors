@@ -3,14 +3,14 @@
     Errors
   </h1>
   <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-    <%= link_to errors_path(scope: :unresolved), class: class_names(
+    <%= link_to errors_path(filter_params.merge(scope: :unresolved)), class: class_names(
           "inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium",
           "border-blue-500 text-blue-500" => !error_scope.resolved?,
           "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700" => error_scope.resolved?) do %>
       <span class="mr-2"><%= SolidErrors::Error::STATUS_TO_EMOJI[:unresolved] %></span>
       <span>Unresolved</span>
     <% end %>
-    <%= link_to errors_path(scope: :resolved), class: class_names(
+    <%= link_to errors_path(filter_params.merge(scope: :resolved)), class: class_names(
           "inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium",
           "border-blue-500 text-blue-500" => error_scope.resolved?,
           "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700" => !error_scope.resolved?) do %>
@@ -20,15 +20,52 @@
   </nav>
 </div>
 
+<%= form_with url: errors_path, method: :get, class: "mb-6 flex flex-wrap items-center gap-3" do %>
+  <%= hidden_field_tag :scope, error_scope.resolved? ? "resolved" : "unresolved", id: nil %>
+  <%= search_field_tag :q, filter_params["q"], placeholder: "Search class, message or source", "aria-label": "Search errors", class: "grow border border-gray-300 rounded-md px-3 py-2 text-sm" %>
+  <%= select_tag :severity, options_for_select([["All severities", ""]] + severity_options, filter_params["severity"]), "aria-label": "Severity", class: "border border-gray-300 bg-white rounded-md px-3 py-2 text-sm" %>
+  <%= select_tag :source, options_for_select([["All sources", ""]] + source_options, filter_params["source"]), "aria-label": "Source", class: "border border-gray-300 bg-white rounded-md px-3 py-2 text-sm" %>
+  <%= select_tag :sort, options_for_select([["Last seen", ""], ["First seen", "first_seen"], ["Most occurrences", "occurrences"]], filter_params["sort"]), "aria-label": "Sort", class: "border border-gray-300 bg-white rounded-md px-3 py-2 text-sm" %>
+  <%= button_tag "Filter", type: "submit", class: "cursor-pointer border border-blue-500 text-blue-500 bg-transparent rounded-md px-3 py-2 text-sm font-medium" %>
+  <% if filter_params.any? %>
+    <%= link_to "Clear", errors_path(scope: error_scope.resolved? ? :resolved : :unresolved), class: "text-sm text-blue-500 underline" %>
+  <% end %>
+<% end %>
+
 <% if @page.pages > 1 %>
   <div class="flex justify-end">
     <%= render "solid_errors/pager", page: @page, noun: "errors" %>
   </div>
 <% end %>
 
+<% if @page.count.zero? %>
+  <p class="py-3 text-gray-500">
+    <% if filter_params.any? %>
+      No errors match these filters.
+      <%= link_to "Clear", errors_path(scope: error_scope.resolved? ? :resolved : :unresolved), class: "text-blue-500 underline" %>
+    <% else %>
+      No <%= error_scope.resolved? ? "resolved" : "unresolved" %> errors.
+    <% end %>
+  </p>
+<% else %>
+<%= form_with url: (error_scope.resolved? ? destroy_many_errors_path : resolve_errors_path), method: (error_scope.resolved? ? :delete : :patch), id: "bulk-form", data: {bulk_form: true, confirm_template: (error_scope.resolved? ? "Delete %count% and their occurrences?" : nil)}.compact, class: "flex items-center gap-3 py-2" do %>
+  <% {scope: (error_scope.resolved? ? "resolved" : "unresolved"), page: params[:page], items: params[:items]}.merge(filter_params.symbolize_keys).each do |name, value| %>
+    <% next unless value.is_a?(String) && value.present? %>
+    <%= hidden_field_tag name, value, id: nil %>
+  <% end %>
+  <% if error_scope.resolved? %>
+    <%= button_tag "Delete selected", type: "submit", class: "cursor-pointer border border-red-500 text-red-500 bg-transparent rounded-md px-3 py-2 text-sm font-medium" %>
+  <% else %>
+    <%= button_tag "Resolve selected", type: "submit", class: "cursor-pointer border border-blue-500 text-blue-500 bg-transparent rounded-md px-3 py-2 text-sm font-medium" %>
+  <% end %>
+<% end %>
+
 <table class="min-w-full divide-y divide-gray-300">
   <thead>
     <tr>
+      <th scope="col" class="py-3.5 pl-4 pr-0 text-left sm:pl-3">
+        <input type="checkbox" data-select-all aria-label="Select all errors on this page">
+      </th>
       <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3">Error</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Count</th>
       <th scope="col" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">Last</th>
@@ -42,3 +79,4 @@
     <%= render partial: "solid_errors/errors/row", collection: @errors, as: :error %>
   </tbody>
 </table>
+<% end %>

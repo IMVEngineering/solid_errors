@@ -240,6 +240,140 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
     I18n.locale = locale
   end
 
+  test "search matches the exception class, message or source" do
+    make_error("Billing::Timeout", "card declined", source: "stripe")
+    make_error("Other", "nothing", source: "sidekiq")
+
+    {"billing::time" => 1, "DECLINED" => 1, "STRIPE" => 1, "zzz" => 0}.each do |q, count|
+      get solid_errors.errors_path(q: q)
+      assert_select "tbody tr", count: count
+    end
+  end
+
+  test "search treats LIKE wildcards literally" do
+    make_error("Percent", "100% done")
+    make_error("Under", "a_b")
+    make_error("Plain", "axb")
+
+    get solid_errors.errors_path(q: "100%")
+    assert_select "tbody tr", count: 1
+    get solid_errors.errors_path(q: "a_b")
+    assert_select "tbody tr", count: 1
+    get solid_errors.errors_path(q: "%")
+    assert_select "tbody tr", count: 1
+  end
+
+  test "a blank search is ignored" do
+    get solid_errors.errors_path(q: "  ")
+
+    assert_select "tbody tr", count: 1
+    assert_select "a", text: "Clear", count: 0
+  end
+
+  test "filters by severity and source and combines with search and scope" do
+    make_error("A", "one", severity: "info", source: "web")
+    make_error("B", "two", severity: "info", source: "job")
+    make_error("C", "three", severity: "error", source: "web", resolved: true)
+
+    get solid_errors.errors_path(severity: "info")
+    assert_select "tbody tr", count: 2
+    get solid_errors.errors_path(source: "web")
+    assert_select "tbody tr", count: 1
+    get solid_errors.errors_path(severity: "info", source: "web", q: "one")
+    assert_select "tbody tr", count: 1
+    get solid_errors.errors_path(source: "web", scope: :resolved)
+    assert_select "tbody tr", count: 1
+    assert_select "tbody tr", text: /three/
+  end
+
+  test "the form offers the values present in the errors table" do
+    make_error("A", "one", severity: "info", source: "web")
+    get solid_errors.errors_path(severity: "info", scope: :resolved)
+
+    assert_select "form[method=get][action=?]", solid_errors.errors_path
+    assert_select "form input[type=hidden][name=scope][value=resolved]"
+    assert_select "form select[name=severity] option", count: 3 # All, info, plus the setup error's severity
+    assert_select "form select[name=severity] option[selected][value=info]"
+    assert_select "form select[name=source] option[value=web]"
+    assert_select "form select[name=sort] option", count: 3
+    assert_select "form button[type=submit]", text: "Filter"
+  end
+
+  test "sorts by last seen, first seen or occurrence count" do
+    old_busy = make_error("OldBusy", "x", created_at: 3.days.ago, occurrences: [2.days.ago, 2.hours.ago, 3.hours.ago])
+    new_quiet = make_error("NewQuiet", "x", created_at: 1.day.ago, occurrences: [1.minute.ago])
+    mid = make_error("Mid", "x", created_at: 2.days.ago, occurrences: [1.hour.ago, 2.days.ago])
+    ids = ->(sort) {
+      get solid_errors.errors_path(q: "x", sort: sort)
+      css_select("tbody tr a[href]").map { |a| a["href"][/\d+\z/].to_i }
+    }
+
+    assert_equal [new_quiet, mid, old_busy].map(&:id), ids.call("last_seen")
+    assert_equal [new_quiet, mid, old_busy].map(&:id), ids.call(nil)
+    assert_equal [new_quiet, mid, old_busy].map(&:id), ids.call("first_seen")
+    assert_equal [old_busy, mid, new_quiet].map(&:id), ids.call("occurrences")
+    assert_equal [new_quiet, mid, old_busy].map(&:id), ids.call("bogus")
+  end
+
+  test "ties sort by newest error first" do
+    a = make_error("A", "x", occurrences: [1.day.ago])
+    b = make_error("B", "x", occurrences: [1.day.ago])
+    get solid_errors.errors_path(q: "x", sort: "occurrences")
+
+    assert_equal [b, a].map { |e| solid_errors.error_path(e) }, css_select("tbody tr a[href]").map { |link| link["href"] }
+  end
+
+  test "the pager and tabs keep the search, filters and sort" do
+    create_errors(30)
+    kept = {q: "msg", severity: "error", source: "test", sort: "occurrences"}
+    get solid_errors.errors_path(kept.merge(page: 1))
+
+    assert_includes pagination_hrefs, solid_errors.errors_path(kept.merge(page: 2))
+    assert_select "nav[aria-label=Tabs] a[href=?]", solid_errors.errors_path(kept.merge(scope: :resolved))
+    assert_select "nav[aria-label=Tabs] a[href=?]", solid_errors.errors_path(kept.merge(scope: :unresolved))
+  end
+
+  test "counts and pages reflect the filtered set" do
+    create_errors(30)
+    make_error("Special", "needle")
+    get solid_errors.errors_path(q: "needle")
+
+    assert_select "tbody tr", count: 1
+    assert_select "nav[aria-label=Pages]", count: 0
+
+    get solid_errors.errors_path(q: "msg", items: 10)
+    assert_select "strong", text: "1-10"
+    assert_select "strong", text: "30"
+  end
+
+  test "Clear appears only when a search, filter or sort is set" do
+    get solid_errors.errors_path
+    assert_select "form a", text: "Clear", count: 0
+
+    get solid_errors.errors_path(sort: "occurrences", scope: :resolved)
+    assert_select "form a[href=?]", solid_errors.errors_path(scope: :resolved), text: "Clear"
+  end
+
+  test "an empty filtered list says so and offers Clear" do
+    get solid_errors.errors_path(q: "nothing like this")
+
+    assert_select "tbody", count: 0
+    assert_select "p", text: /No errors match these filters\./
+    assert_select "p a[href=?]", solid_errors.errors_path(scope: :unresolved), text: "Clear"
+  end
+
+  test "an empty list without filters says so plainly" do
+    get solid_errors.errors_path(scope: :resolved)
+
+    assert_select "p", text: /No resolved errors\./
+  end
+
+  test "array params do not break search" do
+    get solid_errors.errors_path, params: {q: ["a"], severity: {x: 1}}
+
+    assert_response :success
+  end
+
   private
 
   def report_errors(count)
@@ -258,6 +392,123 @@ class SolidErrors::ErrorsControllerTest < ActionDispatch::IntegrationTest
       )
       error.occurrences.create!(created_at: i.minutes.ago)
     end
+  end
+
+  test "index renders row checkboxes tied to the bulk resolve form" do
+    get solid_errors.errors_path
+
+    assert_select "form#bulk-form[action=?]", solid_errors.resolve_errors_path do
+      assert_select "input[name=_method][value=patch]"
+      assert_select "button", text: "Resolve selected"
+    end
+    assert_select "tbody input[type=checkbox][form=bulk-form][name='ids[]']", count: SolidErrors::Error.unresolved.count
+    assert_select "thead input[type=checkbox][data-select-all][aria-label]"
+    assert_select "button", text: "Delete selected", count: 0
+  end
+
+  test "resolved tab renders the bulk delete form" do
+    make_error("OldError", "gone", resolved: true)
+    get solid_errors.errors_path(scope: :resolved)
+
+    assert_select "form#bulk-form[action=?]", solid_errors.destroy_many_errors_path do
+      assert_select "input[name=_method][value=delete]"
+      assert_select "button", text: "Delete selected"
+    end
+    assert_select "tbody input[type=checkbox][form=bulk-form][name='ids[]']", count: 1
+    assert_select "button", text: "Resolve selected", count: 0
+  end
+
+  test "bulk form carries only the set filter params" do
+    make_error("Zork", "zork")
+    get solid_errors.errors_path(q: "Zork", severity: "error", sort: "occurrences", page: "1", items: "10")
+
+    assert_select "form#bulk-form" do
+      assert_select "input[type=hidden][name=scope][value=unresolved]"
+      assert_select "input[type=hidden][name=q][value=Zork]"
+      assert_select "input[type=hidden][name=severity][value=error]"
+      assert_select "input[type=hidden][name=sort][value=occurrences]"
+      assert_select "input[type=hidden][name=page][value='1']"
+      assert_select "input[type=hidden][name=items][value='10']"
+      assert_select "input[type=hidden][name=source]", count: 0
+    end
+  end
+
+  test "bulk resolve resolves only the selected errors" do
+    a = make_error("A", "a")
+    b = make_error("B", "b")
+    c = make_error("C", "c")
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id, b.id]}
+
+    assert a.reload.resolved?
+    assert b.reload.resolved?
+    assert_not c.reload.resolved?
+    assert_equal "Resolved 2 errors.", flash[:notice]
+  end
+
+  test "bulk resolve notifies once per error" do
+    a = make_error("A", "a")
+    b = make_error("B", "b")
+    ids = []
+    subscriber = ActiveSupport::Notifications.subscribe("error_resolved.solid_errors") { |*args| ids << args.last[:error].id }
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id, b.id]}
+
+    assert_equal [a.id, b.id].sort, ids.sort
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  test "bulk resolve pluralizes and redirects back with the list state" do
+    a = make_error("A", "a")
+
+    patch solid_errors.resolve_errors_path, params: {ids: [a.id], scope: "unresolved", q: "A", severity: "error", source: "test", sort: "occurrences", page: "2", items: "5", evil: "x"}
+
+    assert_equal "Resolved 1 error.", flash[:notice]
+    assert_redirected_to solid_errors.errors_path(scope: "unresolved", q: "A", severity: "error", source: "test", sort: "occurrences", page: "2", items: "5")
+  end
+
+  test "bulk resolve without a selection redirects with an alert" do
+    patch solid_errors.resolve_errors_path, params: {q: "x"}
+
+    assert_redirected_to solid_errors.errors_path(q: "x")
+    assert_equal "No errors selected.", flash[:alert]
+  end
+
+  test "bulk delete removes only resolved selected errors and their occurrences" do
+    resolved = make_error("R", "r", resolved: true, occurrences: [Time.current, 1.hour.ago])
+    unresolved = make_error("U", "u")
+    untouched = make_error("V", "v", resolved: true)
+
+    delete solid_errors.destroy_many_errors_path, params: {ids: [resolved.id, unresolved.id], scope: "resolved"}
+
+    assert_not SolidErrors::Error.exists?(resolved.id)
+    assert_equal 0, SolidErrors::Occurrence.where(error_id: resolved.id).count
+    assert SolidErrors::Error.exists?(unresolved.id)
+    assert SolidErrors::Error.exists?(untouched.id)
+    assert_equal "Deleted 1 error.", flash[:notice]
+    assert_redirected_to solid_errors.errors_path(scope: "resolved")
+  end
+
+  test "bulk delete without a selection redirects with an alert" do
+    delete solid_errors.destroy_many_errors_path, params: {scope: "resolved"}
+
+    assert_redirected_to solid_errors.errors_path(scope: "resolved")
+    assert_equal "No errors selected.", flash[:alert]
+  end
+
+  test "bulk routes do not collide with show" do
+    get "/resolve"
+    assert_response :not_found
+  end
+
+  def make_error(exception_class, message, severity: "error", source: "test", resolved: false, created_at: Time.current, occurrences: [Time.current])
+    error = SolidErrors::Error.create!(
+      exception_class: exception_class, message: message, severity: severity, source: source,
+      fingerprint: "fp-#{exception_class}-#{message}", created_at: created_at, resolved_at: (Time.current if resolved)
+    )
+    occurrences.each { |time| error.occurrences.create!(created_at: time) }
+    error
   end
 
   def pagination_hrefs
